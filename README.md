@@ -45,7 +45,7 @@ For creating input data graphs from the LST output ntuple
 
 For training one could do something like this:
 
-    python train.py --seed 1234 --epochs 10 --hidden-size 200 --lr 0.00005 --save-model
+    python train.py --seed 1234 --epochs 50 --hidden-size 200 --lr 0.005 --save-model
 
 For running inference on test set
 
