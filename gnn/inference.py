@@ -38,6 +38,7 @@ device = "cpu"
 model = sys.argv[1]
 hiddensize = int(model.rsplit("hiddensize")[1].split("_")[0])
 epoch = int(model.rsplit("epoch")[1].split("_")[0])
+lr = float(model.rsplit("lr")[1].split("_")[0])
 
 interaction_network = InteractionNetwork(hiddensize)
 interaction_network.load_state_dict(torch.load(model))
@@ -46,7 +47,7 @@ interaction_network.eval()
 
 test_loader = torch.load("lstdata_5evts_test.pt")
 
-csv = "../result/csvs/data_epoch{}.csv".format(epoch)
+csv = "../result/csvs/data_hiddensize{}_lr{}_epoch{}.csv".format(hiddensize, lr, epoch)
 f_csv = open(csv, "w")
 
 for idx, data in enumerate(test_loader):

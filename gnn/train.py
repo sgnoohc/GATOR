@@ -186,8 +186,8 @@ def main():
 
         if args.save_model:
             torch.save(model.state_dict(),
-                       "trained_models/train_hiddensize{}_PyG_LST_epoch{}_0.8GeV_redo.pt"
-                       .format(args.hidden_size, epoch))
+                       "trained_models/train_hiddensize{}_PyG_LST_epoch{}_lr{}_0.8GeV_redo.pt"
+                       .format(args.hidden_size, epoch, args.lr))
 
         output['train_loss'].append(train_loss)
         output['test_loss'].append(test_loss)

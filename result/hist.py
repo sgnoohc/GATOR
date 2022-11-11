@@ -5,9 +5,9 @@ import ROOT as r
 f_sig = r.TFile("sig.root", "recreate")
 f_bkg = r.TFile("bkg.root", "recreate")
 
-for epoch in range(1, 11):
+def write(hiddensize, lr, epoch):
 
-    f = open("csvs/data_epoch{}.csv".format(epoch))
+    f = open("csvs/data_hiddensize{}_lr{}_epoch{}.csv".format(hiddensize, lr, epoch))
     hname = "h_epoch{}".format(epoch)
 
     h_sig = r.TH1F(hname, hname, 180, 0., 1.)
@@ -33,3 +33,8 @@ for epoch in range(1, 11):
     h_bkg.SetDirectory(f_bkg)
     h_bkg.Write()
 
+# for epoch in range(1, 11):
+#     write(epoch)
+
+for epoch in range(1, 51):
+    write(200, 0.005, epoch)

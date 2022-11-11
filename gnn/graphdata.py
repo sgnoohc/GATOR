@@ -51,8 +51,8 @@ def get_data(entry_start, entry_stop):
 
 if __name__ == "__main__":
 
-    data = get_data(0, 95)
-    torch.save(data, "lstdata_95evts_train.pt")
+    data = get_data(0, 170)
+    torch.save(data, "lstdata_170evts_train.pt")
 
     data = get_data(95, 100)
     torch.save(data, "lstdata_5evts_test.pt")

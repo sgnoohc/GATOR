@@ -10,16 +10,16 @@ p.dump_plot(
             "sig.root",
             ],
         legend_labels = [
-            "fake LS",
+            "fake edge",
             ],
         signal_labels = [
-            "true LS",
+            "true edge",
             ],
         extraoptions={
-            "yaxis_log":True,
-            # "signal_scale":"auto",
+            # "yaxis_log":True,
+            "signal_scale":"auto",
             "lumi_value":-1,
-            "yaxis_label":"# of LS",
+            "yaxis_label":"# of edge",
             "xaxis_label":"GNN output scores",
             },
         )
