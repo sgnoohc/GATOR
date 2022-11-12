@@ -16,10 +16,10 @@ p.dump_plot(
             "true edge",
             ],
         extraoptions={
-            # "yaxis_log":True,
-            "signal_scale":"auto",
+            "yaxis_log":True,
+            # "signal_scale":"auto",
             "lumi_value":-1,
-            "yaxis_label":"# of edge",
+            "yaxis_label":"# of LS",
             "xaxis_label":"GNN output scores",
             },
         )

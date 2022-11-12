@@ -33,7 +33,7 @@ def usage():
 if len(sys.argv) < 2:
     usage()
 
-device = "cpu"
+device = "cuda"
 
 model = sys.argv[1]
 hiddensize = int(model.rsplit("hiddensize")[1].split("_")[0])
@@ -52,7 +52,16 @@ f_csv = open(csv, "w")
 
 for idx, data in enumerate(test_loader):
     data = data.to(device)
-    output = interaction_network(data.x, data.edge_index, data.edge_attr)
+    interaction_network = interaction_network.to(device)
+    times = []
+    for i in range(100):
+        start = time()
+        output = interaction_network(data.x, data.edge_index, data.edge_attr)
+        end = time()
+        if i > 10:
+            times.append(end - start)
+        # print("end - start", end - start)
+    print("avg", np.sum(times) / len(times))
 
     for y, o in zip(data.y, output):
         f_csv.write("{},{}\n".format(float(y), float(o)))

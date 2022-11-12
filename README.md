@@ -27,6 +27,10 @@ Then we create an environment for us called "gnn".
     conda install -c conda-forge pytorch_geometric
     conda install -c conda-forge uproot
 
+Or a more full list
+
+    conda create --name gator uproot pandas matplotlib jupyter graphviz iminuit scipy shapely pytorch pytorch_geometric plotly
+
 #### Next time logging
 
 Once environment setup next time logging in just do
