@@ -124,9 +124,9 @@ def main():
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=14, metavar='N',
+    parser.add_argument('--epochs', type=int, default=50, metavar='N',
                         help='number of epochs to train (default: 14)')
-    parser.add_argument('--lr', type=float, default=1.0, metavar='LR',
+    parser.add_argument('--lr', type=float, default=0.005, metavar='LR',
                         help='learning rate (default: 1.0)')
     parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
                         help='Learning rate step gamma (default: 0.7)')
@@ -138,17 +138,17 @@ def main():
                         help='disables CUDA training')
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='quickly check a single pass')
-    parser.add_argument('--seed', type=int, default=1, metavar='S',
+    parser.add_argument('--seed', type=int, default=1234, metavar='S',
                         help='random seed (default: 1)')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
-    parser.add_argument('--save-model', action='store_true', default=False,
+    parser.add_argument('--save-model', action='store_true', default=True,
                         help='For Saving the current Model')
     parser.add_argument('--construction', type=str, default='heptrkx_classic',
                         help='graph construction method')
     parser.add_argument('--sample', type=int, default=1,
                         help='TrackML train_{} sample to train on')
-    parser.add_argument('--hidden-size', type=int, default=40,
+    parser.add_argument('--hidden-size', type=int, default=200,
                         help='Number of hidden units per layer')
 
     args = parser.parse_args()
@@ -163,9 +163,9 @@ def main():
 
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    train_loader = torch.load("/home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_train.pt")
-    test_loader = torch.load("/home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_test.pt")
-    val_loader = torch.load("/home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt")
+    train_loader = torch.load("LSTGnnGraph_ttbar_PU200_train.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_train.pt
+    test_loader = torch.load("LSTGnnGraph_ttbar_PU200_test.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_test.pt
+    val_loader = torch.load("LSTGnnGraph_ttbar_PU200_valid.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt
 
     model = InteractionNetwork(args.hidden_size).to(device)
     total_trainable_params = sum(p.numel() for p in model.parameters())
@@ -174,6 +174,8 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = StepLR(optimizer, step_size=args.step_size,
                        gamma=args.gamma)
+
+    os.system("mkdir -p trained_models")
 
     output = {'train_loss': [], 'test_loss': [], 'test_acc': []}
     for epoch in range(1, args.epochs + 1):
@@ -186,7 +188,8 @@ def main():
 
         if args.save_model:
             torch.save(model.state_dict(),
-                       "/home/p.chang/data/lst/GATOR/trained_models/train_hiddensize{}_PyG_LST_epoch{}_lr{}_0.8GeV_redo.pt"
+                       #"/home/p.chang/data/lst/GATOR/trained_models/train_hiddensize{}_PyG_LST_epoch{}_lr{}_0.8GeV_redo.pt"
+                       "trained_models/train_hiddensize{}_PyG_LST_epoch{}_lr{}_0.8GeV_redo.pt"
                        .format(args.hidden_size, epoch, args.lr))
 
         output['train_loss'].append(train_loss)

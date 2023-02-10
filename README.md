@@ -1,5 +1,27 @@
 
-## Command lines
+## Running on HiPerGator
+
+On login[1-6] node checkout the code
+    git clone git@github.com:sgnoohc/GATOR.git
+
+Then fire up an interactive (option -i) SLURM job. (SLURM is an alternative to Condor)
+Following command requests one A100 GPU node.
+
+    srun --partition=gpu --gpus=1 --mem=16gb --constraint=a100 --pty bash -i
+
+Within the node:
+
+    cd GATOR/gnn
+    soure setup_hpg.sh
+    python graphdata.py # intermediate outputs are saved
+    python train.py
+    python inference.py
+    make -j
+    ./writetree
+
+This creates the `output.root` that contains the MD and LS with `LS_score` branch
+
+## Command lines (DEPRECATED)
 
 ### Training and Inference
 
