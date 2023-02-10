@@ -1,6 +1,8 @@
 
 ## Running on HiPerGator
 
+### Instructions
+
 Login to hpg
 
     ssh $user@hpg.rc.ufl.edu
@@ -17,14 +19,20 @@ Following command requests one A100 GPU node.
 Within the node:
 
     cd GATOR/gnn
-    soure setup_hpg.sh
-    python graphdata.py # intermediate outputs are saved
+    source setup_hpg.sh
+    python graphdata.py
     python train.py
     python inference.py
     make -j
     ./writetree
 
 This creates the `output.root` that contains the MD and LS with `LS_score` branch
+
+### Input
+
+The beginning input ```LSTNtuple.root``` is located in Philip's home area.
+The intermediate values are also in the home area.
+In the python scripts in various places, the respective intermediate results outputs are located in the path noted in the comment. 
 
 ## Command lines (DEPRECATED)
 
