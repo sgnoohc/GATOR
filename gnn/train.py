@@ -163,9 +163,9 @@ def main():
 
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    train_loader = torch.load("lstdata_95evts_train.pt")
-    test_loader = torch.load("lstdata_5evts_test.pt")
-    val_loader = torch.load("lstdata_5evts_valid.pt")
+    train_loader = torch.load("/home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_train.pt")
+    test_loader = torch.load("/home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_test.pt")
+    val_loader = torch.load("/home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt")
 
     model = InteractionNetwork(args.hidden_size).to(device)
     total_trainable_params = sum(p.numel() for p in model.parameters())
@@ -186,7 +186,7 @@ def main():
 
         if args.save_model:
             torch.save(model.state_dict(),
-                       "trained_models/train_hiddensize{}_PyG_LST_epoch{}_lr{}_0.8GeV_redo.pt"
+                       "/home/p.chang/data/lst/GATOR/trained_models/train_hiddensize{}_PyG_LST_epoch{}_lr{}_0.8GeV_redo.pt"
                        .format(args.hidden_size, epoch, args.lr))
 
         output['train_loss'].append(train_loss)
