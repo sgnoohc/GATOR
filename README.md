@@ -1,7 +1,12 @@
 
 ## Running on HiPerGator
 
+Login to hpg
+
+    ssh $user@hpg.rc.ufl.edu
+
 On login[1-6] node checkout the code
+
     git clone git@github.com:sgnoohc/GATOR.git
 
 Then fire up an interactive (option -i) SLURM job. (SLURM is an alternative to Condor)
