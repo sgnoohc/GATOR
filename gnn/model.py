@@ -53,11 +53,9 @@ class InteractionNetwork(MessagePassing):
     def forward(self, x: Tensor, edge_index: Tensor, edge_attr: Tensor) -> Tensor:
 
         x_tilde = self.propagate(edge_index, x=x, edge_attr=edge_attr, size=None)
-        x_tilde_2 = self.propagate(edge_index, x=x_tilde, edge_attr=edge_attr, size=None)
-        x_tilde_3 = self.propagate(edge_index, x=x_tilde_2, edge_attr=edge_attr, size=None)
 
-        m2 = torch.cat([x_tilde_3[edge_index[1]],
-                        x_tilde_3[edge_index[0]],
+        m2 = torch.cat([x_tilde[edge_index[1]],
+                        x_tilde[edge_index[0]],
                         self.E], dim=1)
         return torch.sigmoid(self.R2(m2))
 
