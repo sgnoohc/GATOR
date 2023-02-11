@@ -34,6 +34,16 @@ The beginning input ```LSTNtuple.root``` is located in Philip's home area.
 The intermediate values are also in the home area.
 In the python scripts in various places, the respective intermediate results outputs are located in the path noted in the comment. 
 
+### Displaying via plotly
+
+We will use jhub.rc.ufl.edu
+
+In the terminal install plotly / uproot / uproot-awkward
+
+    pip install plotly
+    pip install uproot
+    pip install awkward-pandas
+
 ## Command lines (DEPRECATED)
 
 ### Training and Inference
