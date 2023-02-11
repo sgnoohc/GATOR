@@ -8,7 +8,10 @@ from torch_geometric.data import Data, DataLoader
 from torch_geometric.nn import MessagePassing
 from torch.nn import Sequential as Seq, Linear, ReLU, Sigmoid
 
-verbose = False
+node_feat_len = 7
+edge_feat_len = 3
+message_feat_len = 3
+latent_node_feat_len = 3
 
 class RelationalModel(nn.Module):
     def __init__(self, input_size, output_size, hidden_size):
@@ -45,21 +48,37 @@ class InteractionNetwork(MessagePassing):
     def __init__(self, hidden_size):
         super(InteractionNetwork, self).__init__(aggr='add',
                                                  flow='source_to_target')
-        self.R1 = RelationalModel(17, 17, hidden_size)
-        self.O = ObjectModel(24, 7, hidden_size)
-        self.R2 = RelationalModel(31, 1, hidden_size)
+
+        # Message Calculation Model (Node, Edge, Node) -> (Message)
+        self.R1 = RelationalModel(
+                2 * node_feat_len + edge_feat_len,
+                message_feat_len,
+                hidden_size)
+
+        # Latent Node Calculation Model (Node, Sum_i Message_i) -> (Latent Node)
+        self.O = ObjectModel(
+                node_feat_len + message_feat_len,
+                latent_node_feat_len,
+                hidden_size)
+
+        # Edge Classification Model (Latent Node, Message, Latent Node) -> (1 dim edge score)
+        self.R2 = RelationalModel(
+                2 * latent_node_feat_len + message_feat_len,
+                1,
+                hidden_size)
+
         self.E: Tensor = Tensor()
 
     def forward(self, x: Tensor, edge_index: Tensor, edge_attr: Tensor) -> Tensor:
-
+        # Edge Classification Model
         x_tilde = self.propagate(edge_index, x=x, edge_attr=edge_attr, size=None)
-
         m2 = torch.cat([x_tilde[edge_index[1]],
                         x_tilde[edge_index[0]],
                         self.E], dim=1)
         return torch.sigmoid(self.R2(m2))
 
     def message(self, x_i, x_j, edge_attr):
+        # Message Calculation Model
         # x_i --> incoming
         # x_j --> outgoing
         m1 = torch.cat([x_i, x_j, edge_attr], dim=1)
@@ -67,6 +86,7 @@ class InteractionNetwork(MessagePassing):
         return self.E
 
     def update(self, aggr_out, x):
+        # Latent Node Calculation Model
         c = torch.cat([x, aggr_out], dim=1)
         return self.O(c)
 
