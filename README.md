@@ -40,9 +40,12 @@ We will use jhub.rc.ufl.edu
 
 In the terminal install plotly / uproot / uproot-awkward
 
+    module load python/3.10
     pip install plotly
     pip install uproot
     pip install awkward-pandas
+
+Then go to `display/` and open EventDisplay.ipynb for examples
 
 ## Command lines (DEPRECATED)
 

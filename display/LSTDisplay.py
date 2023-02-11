@@ -71,7 +71,7 @@ def get_simtrk_go(tree, eventidx, selection=signal_simtrk_selection, **kwargs):
     for itrk, (pt, eta, phi, vx, vy, vz, q, TC_matched) in enumerate(zip(sim_pt, sim_eta, sim_phi, sim_vx, sim_vy, sim_vz, sim_q, sim_TC_matched)):
         if not selection(pt, eta, phi, vx, vy, vz, q, TC_matched):
             continue
-        print(vx, vy, vz)
+        # print(vx, vy, vz)
         nsim += 1
         points = m.get_helix_points(m.construct_helix_from_kinematics(pt, eta, phi, vx, vy, vz, q))
         Xsim += list(points[0]) + [None] # Non is to disconnec the lines
