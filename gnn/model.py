@@ -10,8 +10,8 @@ from torch.nn import Sequential as Seq, Linear, ReLU, Sigmoid
 
 node_feat_len = 7
 edge_feat_len = 3
-message_feat_len = 3
-latent_node_feat_len = 3
+message_feat_len = 17
+latent_node_feat_len = 7
 
 class RelationalModel(nn.Module):
     def __init__(self, input_size, output_size, hidden_size):
@@ -43,10 +43,9 @@ class ObjectModel(nn.Module):
     def forward(self, C):
         return self.layers(C)
 
-
 class InteractionNetwork(MessagePassing):
     def __init__(self, hidden_size):
-        super(InteractionNetwork, self).__init__(aggr='add',
+        super(InteractionNetwork, self).__init__(aggr='max',
                                                  flow='source_to_target')
 
         # Message Calculation Model (Node, Edge, Node) -> (Message)

@@ -140,7 +140,7 @@ def main():
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1234, metavar='S',
                         help='random seed (default: 1)')
-    parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+    parser.add_argument('--log-interval', type=int, default=100, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--save-model', action='store_true', default=True,
                         help='For Saving the current Model')
@@ -163,9 +163,13 @@ def main():
 
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    train_loader = torch.load("LSTGnnGraph_ttbar_PU200_train.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_train.pt
-    test_loader = torch.load("LSTGnnGraph_ttbar_PU200_test.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_test.pt
-    val_loader = torch.load("LSTGnnGraph_ttbar_PU200_valid.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt
+    # train_loader = torch.load("LSTGnnGraph_ttbar_PU200_train.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_train.pt
+    # test_loader = torch.load("LSTGnnGraph_ttbar_PU200_test.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_test.pt
+    # val_loader = torch.load("LSTGnnGraph_ttbar_PU200_valid.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt
+
+    train_loader = torch.load("LSTGnnUndirGraph_ttbar_PU200_train.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_train.pt
+    test_loader = torch.load("LSTGnnUndirGraph_ttbar_PU200_test.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_test.pt
+    val_loader = torch.load("LSTGnnUndirGraph_ttbar_PU200_valid.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_valid.pt
 
     model = InteractionNetwork(args.hidden_size).to(device)
     total_trainable_params = sum(p.numel() for p in model.parameters())

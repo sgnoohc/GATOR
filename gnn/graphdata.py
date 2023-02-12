@@ -3,9 +3,10 @@
 import uproot
 import torch
 from torch_geometric.data import Data, DataLoader
+from torch_geometric.utils import to_undirected
 import numpy as np
 
-def get_data(entry_start, entry_stop):
+def get_data(entry_start, entry_stop, undirected=False):
 
     tree = uproot.open("/home/p.chang/data/lst/CMSSW_12_2_0_pre2/LSTGnnNtuple_ttbar_PU200.root:tree")
 
@@ -13,6 +14,7 @@ def get_data(entry_start, entry_stop):
 
     for batch in tree.iterate(step_size=1, library="pd", filter_name="/(MD|LS)_*/", entry_start=entry_start, entry_stop=entry_stop):
 
+        # print(len(list(batch["LS_MD_idx0"])[0]+list(batch["LS_MD_idx1"])[0]))
         edge_index = torch.tensor([list(batch["LS_MD_idx0"])[0],
                                    list(batch["LS_MD_idx1"])[0]], dtype=torch.long)
 
@@ -33,7 +35,15 @@ def get_data(entry_start, entry_stop):
                           list(batch["MD_dphichange"])[0]], dtype=torch.float)
         x = torch.transpose(x, 0, 1)
 
-        data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr)
+        if undirected:
+            # To turn the graph undirected
+            edge_index_bi, edge_attr_bi = to_undirected(edge_index, edge_attr)
+            _, y_bi = to_undirected(edge_index, y)
+            data = Data(x=x, y=y_bi, edge_index=edge_index_bi, edge_attr=edge_attr_bi)
+        else:
+            # To have the graph directed
+            data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr)
+
 
         data_list.append(data)
 
@@ -50,4 +60,13 @@ if __name__ == "__main__":
 
     data = get_data(100, 105)
     torch.save(data, "LSTGnnGraph_ttbar_PU200_valid.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt
+
+    data = get_data(0, 95, True)
+    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_train.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_train.pt
+
+    data = get_data(95, 100, True)
+    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_test.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_test.pt
+
+    data = get_data(100, 105, True)
+    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_valid.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_valid.pt
 
