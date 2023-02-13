@@ -69,7 +69,10 @@ class InteractionNetwork(MessagePassing):
         self.E: Tensor = Tensor()
 
     def forward(self, x: Tensor, edge_index: Tensor, edge_attr: Tensor) -> Tensor:
+        # type: (Tensor, Tensor, Tensor) -> Tensor
+
         # Edge Classification Model
+        # propagate_type: (x: Tensor, edge_attr: Tensor)
         x_tilde = self.propagate(edge_index, x=x, edge_attr=edge_attr, size=None)
         m2 = torch.cat([x_tilde[edge_index[1]],
                         x_tilde[edge_index[0]],
