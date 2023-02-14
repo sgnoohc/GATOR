@@ -5,7 +5,6 @@ LSTGnnNtuple format description
 
 ### Simulated Tracks
 
-
 The following `sim_` container holds information about sub set of simulated tracks in a given event.
 The selection requirement is that `sim_bunchCrossing==0` (requires that the track is in-time) and `sim_event==0` (requires that the track is from hard-scattered vertex).
 
@@ -24,55 +23,57 @@ The selection requirement is that `sim_bunchCrossing==0` (requires that the trac
 | ```sim_vz```              | ```(vector<float>*)```          | production vertex x position |
 | ```sim_trkNtupIdx```      | ```(vector<float>*)```          | the index in the ```sim_``` container from the actual mother tracking ntuple |
 | ```sim_TC_matched```      | ```(vector<int>*)```            | == 1 if a track candidate (TC) from LST is matched to this simulated track |
-| ```sim_TC_matched_mask``` | ```(vector<int>*)```            | flag for holding info on the type of TC matched |
+| ```sim_TC_matched_mask``` | ```(vector<int>*)```            | flag for holding info on the type of TC matched (see `tc_type`) for more detailed info|
+
+### LST's Track Candidates
 
 | Branch Name         | Branch Type               | Description         |
 | ------------------- | ------------------------- | ------------------- |
-| ```tc_pt```               | ```(vector<float>*)```          | tc_pt               |
-| ```tc_eta```              | ```(vector<float>*)```          | tc_eta              |
-| ```tc_phi```              | ```(vector<float>*)```          | tc_phi              |
-| ```tc_type```             | ```(vector<int>*)```            | tc_type             |
-| ```tc_isFake```           | ```(vector<int>*)```            | tc_isFake           |
-| ```tc_isDuplicate```      | ```(vector<int>*)```            | tc_isDuplicate      |
-| ```tc_matched_simIdx```   | ```(vector<vector<int> >*)```   | tc_matched_simIdx   |
+| ```tc_pt```               | ```(vector<float>*)```          | pt estimate         |
+| ```tc_eta```              | ```(vector<float>*)```          | eta estimate        |
+| ```tc_phi```              | ```(vector<float>*)```          | phi estimate        |
+| ```tc_type```             | ```(vector<int>*)```            | type is a integer bool mask where boolean at positions, pT5 = 7, pT3 = 5, T5 = 4, pLS = 8 are set to 1 or 0 |
+| ```tc_isFake```           | ```(vector<int>*)```            | true if the track candidate is not matched a true ```sim_``` |
+| ```tc_isDuplicate```      | ```(vector<int>*)```            | ture if the track candidate is true, but another tc is also matched to the same ```sim_```
+| ```tc_matched_simIdx```   | ```(vector<vector<int> >*)```   | the indices to the ```sim_``` container that this tc is matched to. N.B. However, many of the matched true ```sim_``` information is lost as we do not save all of the simulated tracks to ```sim_``` container |
 
 | Branch Name         | Branch Type               | Description         |
 | ------------------- | ------------------------- | ------------------- |
-| ```MD_pt```               | ```(vector<float>*)```          | MD_pt               |
-| ```MD_eta```              | ```(vector<float>*)```          | MD_eta              |
-| ```MD_phi```              | ```(vector<float>*)```          | MD_phi              |
-| ```MD_dphichange```       | ```(vector<float>*)```          | MD_dphichange       |
-| ```MD_isFake```           | ```(vector<int>*)```            | MD_isFake           |
-| ```MD_tpType```           | ```(vector<int>*)```            | MD_tpType           |
-| ```MD_detId```            | ```(vector<int>*)```            | MD_detId            |
-| ```MD_layer```            | ```(vector<int>*)```            | MD_layer            |
-| ```MD_0_r```              | ```(vector<float>*)```          | MD_0_r              |
-| ```MD_0_x```              | ```(vector<float>*)```          | MD_0_x              |
-| ```MD_0_y```              | ```(vector<float>*)```          | MD_0_y              |
-| ```MD_0_z```              | ```(vector<float>*)```          | MD_0_z              |
-| ```MD_1_r```              | ```(vector<float>*)```          | MD_1_r              |
-| ```MD_1_x```              | ```(vector<float>*)```          | MD_1_x              |
-| ```MD_1_y```              | ```(vector<float>*)```          | MD_1_y              |
-| ```MD_1_z```              | ```(vector<float>*)```          | MD_1_z              |
+| ```MD_pt```               | ```(vector<float>*)```          | pt estimate         |
+| ```MD_eta```              | ```(vector<float>*)```          | eta estimate        |
+| ```MD_phi```              | ```(vector<float>*)```          | phi estimate        |
+| ```MD_dphichange```       | ```(vector<float>*)```          | dphichange          |
+| ```MD_isFake```           | ```(vector<int>*)```            | true if both hits are not matched to same ```sim_``` |
+| ```MD_tpType```           | ```(vector<int>*)```            | see getDenomSimTrkType from ```code/core/trkCore.cc``` |
+| ```MD_detId```            | ```(vector<int>*)```            | detId of where the mini-doublet is from |
+| ```MD_layer```            | ```(vector<int>*)```            | layer of where the mini-doublet is from (1 2 3 4 5 6 for barrel, 7 8 9 10 11 for endcap) |
+| ```MD_0_r```              | ```(vector<float>*)```          | lower hit's radius  |
+| ```MD_0_x```              | ```(vector<float>*)```          | lower hit's x       |
+| ```MD_0_y```              | ```(vector<float>*)```          | lower hit's y       |
+| ```MD_0_z```              | ```(vector<float>*)```          | lower hit's z       |
+| ```MD_1_r```              | ```(vector<float>*)```          | upper hit's radius  |
+| ```MD_1_x```              | ```(vector<float>*)```          | upper hit's x       |
+| ```MD_1_y```              | ```(vector<float>*)```          | upper hit's y       |
+| ```MD_1_z```              | ```(vector<float>*)```          | upper hit's z       |
 
 | Branch Name         | Branch Type               | Description         |
 | ------------------- | ------------------------- | ------------------- |
-| ```LS_pt```               | ```(vector<float>*)```          | LS_pt               |
-| ```LS_eta```              | ```(vector<float>*)```          | LS_eta              |
-| ```LS_phi```              | ```(vector<float>*)```          | LS_phi              |
-| ```LS_isFake```           | ```(vector<int>*)```            | LS_isFake           |
-| ```LS_MD_idx0```          | ```(vector<int>*)```            | LS_MD_idx0          |
-| ```LS_MD_idx1```          | ```(vector<int>*)```            | LS_MD_idx1          |
-| ```LS_sim_pt```           | ```(vector<float>*)```          | LS_sim_pt           |
-| ```LS_sim_eta```          | ```(vector<float>*)```          | LS_sim_eta          |
-| ```LS_sim_phi```          | ```(vector<float>*)```          | LS_sim_phi          |
-| ```LS_sim_pca_dxy```      | ```(vector<float>*)```          | LS_sim_pca_dxy      |
-| ```LS_sim_pca_dz```       | ```(vector<float>*)```          | LS_sim_pca_dz       |
-| ```LS_sim_q```            | ```(vector<int>*)```            | LS_sim_q            |
-| ```LS_sim_pdgId```        | ```(vector<int>*)```            | LS_sim_pdgId        |
-| ```LS_sim_event```        | ```(vector<int>*)```            | LS_sim_event        |
-| ```LS_sim_bx```           | ```(vector<int>*)```            | LS_sim_bx           |
-| ```LS_sim_vx```           | ```(vector<float>*)```          | LS_sim_vx           |
-| ```LS_sim_vy```           | ```(vector<float>*)```          | LS_sim_vy           |
-| ```LS_sim_vz```           | ```(vector<float>*)```          | LS_sim_vz           |
-| ```LS_isInTrueTC```       | ```(vector<int>*)```            | LS_isInTrueTC       |
+| ```LS_pt```               | ```(vector<float>*)```          | pt estimate         |
+| ```LS_eta```              | ```(vector<float>*)```          | eta estimate        |
+| ```LS_phi```              | ```(vector<float>*)```          | phi estimate        |
+| ```LS_isFake```           | ```(vector<int>*)```            | true if all four hits are not matched to same ```sim_``` |
+| ```LS_MD_idx0```          | ```(vector<int>*)```            | index to the lower MD object in ```MD_``` container |
+| ```LS_MD_idx1```          | ```(vector<int>*)```            | index to the upper MD object in ```MD_``` container |
+| ```LS_sim_pt```           | ```(vector<float>*)```          | pt of the first matched sim-trk |
+| ```LS_sim_eta```          | ```(vector<float>*)```          | eta of the first matched sim-trk |
+| ```LS_sim_phi```          | ```(vector<float>*)```          | phi of the first matched sim-trk |
+| ```LS_sim_pca_dxy```      | ```(vector<float>*)```          | pca_dxy of the first matched sim-trk |
+| ```LS_sim_pca_dz```       | ```(vector<float>*)```          | pca_dz of the first matched sim-trk |
+| ```LS_sim_q```            | ```(vector<int>*)```            | charge of the first matched sim-trk |
+| ```LS_sim_pdgId```        | ```(vector<int>*)```            | pdgId of the first matched sim-trk |
+| ```LS_sim_event```        | ```(vector<int>*)```            | == 0 if the first matched sim-trk is hard scatter |
+| ```LS_sim_bx```           | ```(vector<int>*)```            | == 0 if the first matched sim-trk is in-time |
+| ```LS_sim_vx```           | ```(vector<float>*)```          | x of the production vertex of the first matched sim-trk |
+| ```LS_sim_vy```           | ```(vector<float>*)```          | y of the production vertex of the first matched sim-trk |
+| ```LS_sim_vz```           | ```(vector<float>*)```          | z of the production vertex of the first matched sim-trk |
+| ```LS_isInTrueTC```       | ```(vector<int>*)```            | if the LS is part of a true matched TC in the ```tc_``` container |
