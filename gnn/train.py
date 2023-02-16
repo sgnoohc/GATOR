@@ -1,6 +1,7 @@
 #!/bin/env python
 
 import os
+import getpass
 import argparse
 from time import time
 
@@ -167,9 +168,9 @@ def main():
      # test_loader  = torch.load("/blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_test.pt")
      # val_loader   = torch.load("/blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt")
 
-    train_loader = torch.load("/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_train.pt".format(os.getlogin()))
-    test_loader  = torch.load("/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_test.pt".format(os.getlogin()))
-    val_loader   = torch.load("/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_valid.pt".format(os.getlogin()))
+    train_loader = torch.load("/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_train.pt".format(getpass.getuser()))
+    test_loader  = torch.load("/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_test.pt".format(getpass.getuser()))
+    val_loader   = torch.load("/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_valid.pt".format(getpass.getuser()))
 
     model = InteractionNetwork(args.hidden_size).to(device)
     total_trainable_params = sum(p.numel() for p in model.parameters())
@@ -179,7 +180,7 @@ def main():
     scheduler = StepLR(optimizer, step_size=args.step_size,
                        gamma=args.gamma)
 
-    os.system("mkdir -p /blue/p.chang/{}/data/lst/GATOR/trained_models".format(os.getlogin()))
+    os.system("mkdir -p /blue/p.chang/{}/data/lst/GATOR/trained_models".format(getpass.getuser()))
 
     output = {'train_loss': [], 'test_loss': [], 'test_acc': []}
     for epoch in range(1, args.epochs + 1):
@@ -193,8 +194,8 @@ def main():
         if args.save_model:
             torch.save(model.state_dict(),
                        #"/blue/p.chang/p.chang/data/lst/GATOR/trained_models/train_hiddensize{}_PyG_LST_epoch{}_lr{}_0.8GeV_redo.pt"
-                       "/blue/p.chang/{}/data/lst/GATOR/trained_models/train_hiddensize{}_PyG_LST_epoch{}_lr{}_0.8GeV_redo.pt".format(os.getlogin())
-                       .format(os.getlogin(), args.hidden_size, epoch, args.lr))
+                       "/blue/p.chang/{}/data/lst/GATOR/trained_models/train_hiddensize{}_PyG_LST_epoch{}_lr{}_0.8GeV_redo.pt"
+                       .format(getpass.getuser(), args.hidden_size, epoch, args.lr))
 
         output['train_loss'].append(train_loss)
         output['test_loss'].append(test_loss)

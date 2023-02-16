@@ -5,6 +5,7 @@ import torch
 from torch_geometric.data import Data, DataLoader
 from torch_geometric.utils import to_undirected
 import numpy as np
+import getpass
 
 def get_data(entry_start, entry_stop, undirected=False):
 
@@ -53,20 +54,20 @@ def get_data(entry_start, entry_stop, undirected=False):
 if __name__ == "__main__":
 
     data = get_data(0, 95)
-    torch.save(data, "LSTGnnGraph_ttbar_PU200_train.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_train.pt
+    torch.save(data, "/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_train.pt".format(getpass.getuser()))
 
     data = get_data(95, 100)
-    torch.save(data, "LSTGnnGraph_ttbar_PU200_test.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_test.pt
+    torch.save(data, "/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_test.pt".format(getpass.getuser()))
 
     data = get_data(100, 105)
-    torch.save(data, "LSTGnnGraph_ttbar_PU200_valid.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt
+    torch.save(data, "/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt".format(getpass.getuser()))
 
     data = get_data(0, 95, True)
-    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_train.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_train.pt
+    torch.save(data, "/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_train.pt".format(getpass.getuser()))
 
     data = get_data(95, 100, True)
-    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_test.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_test.pt
+    torch.save(data, "/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_test.pt".format(getpass.getuser()))
 
     data = get_data(100, 105, True)
-    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_valid.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_valid.pt
+    torch.save(data, "/blue/p.chang/{}/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_valid.pt".format(getpass.getuser()))
 
