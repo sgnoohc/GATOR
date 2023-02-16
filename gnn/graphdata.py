@@ -8,7 +8,7 @@ import numpy as np
 
 def get_data(entry_start, entry_stop, undirected=False):
 
-    tree = uproot.open("/home/p.chang/data/lst/CMSSW_12_2_0_pre2/LSTGnnNtuple_ttbar_PU200.root:tree")
+    tree = uproot.open("/blue/p.chang/p.chang/data/lst/CMSSW_12_2_0_pre2/LSTGnnNtuple_ttbar_PU200.root:tree")
 
     data_list = []
 
@@ -53,20 +53,20 @@ def get_data(entry_start, entry_stop, undirected=False):
 if __name__ == "__main__":
 
     data = get_data(0, 95)
-    torch.save(data, "LSTGnnGraph_ttbar_PU200_train.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_train.pt
+    torch.save(data, "LSTGnnGraph_ttbar_PU200_train.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_train.pt
 
     data = get_data(95, 100)
-    torch.save(data, "LSTGnnGraph_ttbar_PU200_test.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_test.pt
+    torch.save(data, "LSTGnnGraph_ttbar_PU200_test.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_test.pt
 
     data = get_data(100, 105)
-    torch.save(data, "LSTGnnGraph_ttbar_PU200_valid.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt
+    torch.save(data, "LSTGnnGraph_ttbar_PU200_valid.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnGraph_ttbar_PU200_valid.pt
 
     data = get_data(0, 95, True)
-    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_train.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_train.pt
+    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_train.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_train.pt
 
     data = get_data(95, 100, True)
-    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_test.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_test.pt
+    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_test.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_test.pt
 
     data = get_data(100, 105, True)
-    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_valid.pt") # /home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_valid.pt
+    torch.save(data, "LSTGnnUndirGraph_ttbar_PU200_valid.pt") # /blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_valid.pt
 

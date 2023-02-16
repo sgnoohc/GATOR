@@ -10,4 +10,6 @@ model_ts = torch.jit.script(model.jittable(t))
 
 print(model_ts)
 
-model_ts.save("wrapped_gator.pt")
+os.system("mkdir -p /blue/p.chang/p.chang/{}/lst/GATOR/torchscript".format(os.getlogin()))
+
+model_ts.save("/blue/p.chang/p.chang/data/lst/GATOR/torchscript/wrapped_gator.pt")
