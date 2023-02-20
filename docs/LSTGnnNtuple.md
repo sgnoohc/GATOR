@@ -36,6 +36,7 @@ The selection requirement is that `sim_bunchCrossing==0` (requires that the trac
 | ```tc_isFake```           | ```(vector<int>*)```            | true if the track candidate is not matched a true ```sim_``` |
 | ```tc_isDuplicate```      | ```(vector<int>*)```            | ture if the track candidate is true, but another tc is also matched to the same ```sim_```
 | ```tc_matched_simIdx```   | ```(vector<vector<int> >*)```   | the indices to the ```sim_``` container that this tc is matched to. N.B. However, many of the matched true ```sim_``` information is lost as we do not save all of the simulated tracks to ```sim_``` container |
+| ```tc_lsIdx```            | ```(vector<vector<int> >*)```   | the indices to the ```LS_``` container for the LSs that make up this tc. only the outer tracker LSs indices are given. i.e. if pT5, there are only 4 LS idxs. |
 
 | Branch Name         | Branch Type               | Description         |
 | ------------------- | ------------------------- | ------------------- |
