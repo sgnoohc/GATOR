@@ -25,7 +25,7 @@ from model import InteractionNetwork
 
 device = "cuda"
 
-model = "/home/p.chang/{}/trained_models/train_hiddensize200_PyG_LST_epoch50_lr0.005_0.8GeV_redo.pt".format(getpass.getuser())
+model = "/blue/p.chang/{}/trained_models/train_hiddensize200_PyG_LST_epoch50_lr0.005_0.8GeV_redo.pt".format(getpass.getuser())
 # Parsing the setting from the file name of the model
 hiddensize = int(model.rsplit("hiddensize")[1].split("_")[0])
 epoch = int(model.rsplit("epoch")[1].split("_")[0])
@@ -36,7 +36,7 @@ interaction_network.load_state_dict(torch.load(model))
 
 interaction_network.eval()
 
-test_loader = torch.load("/home/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_test.pt")
+test_loader = torch.load("/blue/p.chang/p.chang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnUndirGraph_ttbar_PU200_test.pt")
 
 os.system("mkdir -p /blue/p.chang/{}/data/lst/GATOR/inference".format(getpass.getuser()))
 csv = "/blue/p.chang/{}/data/lst/GATOR/inference/data_hiddensize{}_lr{}_epoch{}.csv".format(getpass.getuser(), hiddensize, lr, epoch)
