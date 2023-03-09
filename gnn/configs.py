@@ -11,3 +11,6 @@ class GatorConfig(SimpleNamespace):
     def from_json(cls, config_json):
         with open(config_json, "r") as f:
             return json.load(f, object_hook=lambda d: cls(**d))
+
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
