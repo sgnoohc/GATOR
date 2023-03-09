@@ -1,0 +1,46 @@
+{
+    "basedir": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2",
+    "name": "LineSegmentClassifier",
+    "model": {
+        "name": "ChangNet",
+        "n_hidden_layers": 200,
+        "n_message_features": 17,
+        "n_latent_node_features": 7
+    },
+    "ingress": {
+        "input_file": "/blue/p.chang/p.chang/data/lst/CMSSW_12_2_0_pre2/LSTGnnNtuple_ttbar_PU200.root",
+        "ttree_name": "tree", 
+        "undirected": false,
+        "edge_indices": [
+            "LS_MD_idx0",
+            "LS_MD_idx1"
+        ],
+        "edge_features": [
+            "LS_pt",
+            "LS_eta",
+            "LS_phi"
+        ],
+        "node_features": [
+            "MD_0_x",
+            "MD_0_y",
+            "MD_0_z",
+            "MD_1_x",
+            "MD_1_y",
+            "MD_1_z",
+            "MD_dphichange"
+        ],
+        "truth_label": "LS_isFake",
+        "branch_filter": "/(MD|LS)_*/"
+    },
+    "train": {
+        "train_batch_size": 64,
+        "test_batch_size": 1000,
+        "n_epochs": 50,
+        "learning_rate": 0.005,
+        "learning_rate_step_gamma": 0.7,
+        "learning_rate_step_size": 5,
+        "pt_cutoff": 2,
+        "seed": 1234,
+        "construction": "heptrkx_classic"
+    }
+}

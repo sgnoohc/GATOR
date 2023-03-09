@@ -1,0 +1,30 @@
+{
+    "undirected": false,
+    "edge_indices": [
+        "t5_t3_idx0",
+        "t5_t3_idx1"
+    ],
+    "edge_features": [
+        "t5_pt",
+        "t5_eta",
+        "t5_phi",
+    ],
+    "node_features": [
+        "t3_0_x",
+        "t3_0_y",
+        "t3_0_z",
+        "t3_0_r",
+        "t3_0_dr",
+        "t3_2_x",
+        "t3_2_y",
+        "t3_2_z",
+        "t3_2_r",
+        "t3_2_dr",
+        "t3_4_x",
+        "t3_4_y",
+        "t3_4_z",
+        "t3_4_r",
+        "t3_4_dr"
+    ],
+    "truth_label": "t5_isFake"
+}
