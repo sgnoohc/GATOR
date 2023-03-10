@@ -1,15 +1,13 @@
 #!/bin/env python
 
 import os
-import json
-import getpass
 import argparse
 from time import time
 import numpy as np
+import torch
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
-import torch
-import torch.nn.functional as F
+from torch.nn import functional as F
 
 import models
 from configs import GatorConfig
@@ -110,8 +108,7 @@ def test(model, device, test_loader, thresh=0.5):
     return np.mean(losses), np.mean(accs)
 
 if __name__ == "__main__":
-
-    # Training settings
+    # CLI
     parser = argparse.ArgumentParser(description="PyG Interaction Network Implementation")
     parser.add_argument("config_json", type=str, help="config JSON")
     parser.add_argument("-v", "--verbose", action="store_true", help="toggle verbosity")
@@ -135,7 +132,6 @@ if __name__ == "__main__":
         "--sample", type=int, default=1,
         help="TrackML train_{} sample to train on"
     )
-
     args = parser.parse_args()
 
     config = GatorConfig.from_json(args.config_json)
@@ -152,7 +148,7 @@ if __name__ == "__main__":
 
     train_loader = torch.load(f"{config.basedir}/{config.name}_train.pt")
     test_loader  = torch.load(f"{config.basedir}/{config.name}_test.pt")
-    val_loader   = torch.load(f"{config.basedir}/{config.name}_valid.pt")
+    val_loader   = torch.load(f"{config.basedir}/{config.name}_val.pt")
 
     # Load model
     Model = getattr(models, config.model.name)
@@ -181,13 +177,13 @@ if __name__ == "__main__":
         if not args.dry_run:
             outfile = (
                 config.name
-                + "_model{config.model.name}"
-                + "_hiddensize{config.model.n_hidden_layers}"
-                + "_epoch{epoch}"
-                + "_lr{config.train.learning_rate}"
-                + "_0.8GeV_redo.pt"
+                + f"_model{config.model.name}"
+                + f"_hiddensize{config.model.n_hidden_layers}"
+                + f"_epoch{epoch}"
+                + f"_lr{config.train.learning_rate}"
+                + f"_0.8GeV_redo.pt"
             )
-            torch.save(model.state_dict(), f"{config.basedir}/{outfile}")
+            torch.save(model.state_dict(), f"{config.basedir}/trained_models/{outfile}")
 
         output["train_loss"].append(train_loss)
         output["test_loss"].append(test_loss)
