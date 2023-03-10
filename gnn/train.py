@@ -12,6 +12,16 @@ from torch.nn import functional as F
 import models
 from configs import GatorConfig
 
+def get_model_filename(config, epoch):
+    return (
+        config.name
+        + f"_model{config.model.name}"
+        + f"_hiddensize{config.model.n_hidden_layers}"
+        + f"_epoch{epoch}"
+        + f"_lr{config.train.learning_rate}"
+        + f"_0.8GeV_redo.pt"
+    )
+
 def train(args, model, device, train_loader, optimizer, epoch):
     model.train()
     epoch_t0 = time()
@@ -109,7 +119,7 @@ def test(model, device, test_loader, thresh=0.5):
 
 if __name__ == "__main__":
     # CLI
-    parser = argparse.ArgumentParser(description="PyG Interaction Network Implementation")
+    parser = argparse.ArgumentParser(description="Train GNN")
     parser.add_argument("config_json", type=str, help="config JSON")
     parser.add_argument("-v", "--verbose", action="store_true", help="toggle verbosity")
     parser.add_argument(
@@ -118,7 +128,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--n_epochs", type=int, default=50, metavar="N",
-        help="number of epochs to train (default: 50)"
+        help="number of epochs to train"
     )
     parser.add_argument(
         "--dry_run", action="store_true", default=False,
@@ -128,23 +138,17 @@ if __name__ == "__main__":
         "--log_interval", type=int, default=100, metavar="N",
         help="how many batches to wait before logging training status"
     )
-    parser.add_argument(
-        "--sample", type=int, default=1,
-        help="TrackML train_{} sample to train on"
-    )
     args = parser.parse_args()
 
     config = GatorConfig.from_json(args.config_json)
+    os.makedirs(f"{config.basedir}/trained_models", exist_ok=True)
 
-    use_cuda = torch.cuda.is_available()
-
-    print("use_cuda={0}".format(use_cuda))
-
+    print(f"---- Initialization ----")
     torch.manual_seed(config.train.seed)
-
-    print("seed={0}".format(config.train.seed))
-
+    print(f"seed: {config.train.seed}")
+    use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
+    print(f"use_cuda: {use_cuda}")
 
     train_loader = torch.load(f"{config.basedir}/{config.name}_train.pt")
     test_loader  = torch.load(f"{config.basedir}/{config.name}_test.pt")
@@ -163,8 +167,6 @@ if __name__ == "__main__":
         gamma=config.train.learning_rate_step_gamma
     )
 
-    os.makedirs(f"{config.basedir}/trained_models", exist_ok=True)
-
     output = {"train_loss": [], "test_loss": [], "test_acc": []}
     for epoch in range(1, args.n_epochs + 1):
         print(f"---- Epoch {epoch} ----")
@@ -175,15 +177,10 @@ if __name__ == "__main__":
         scheduler.step()
 
         if not args.dry_run:
-            outfile = (
-                config.name
-                + f"_model{config.model.name}"
-                + f"_hiddensize{config.model.n_hidden_layers}"
-                + f"_epoch{epoch}"
-                + f"_lr{config.train.learning_rate}"
-                + f"_0.8GeV_redo.pt"
+            torch.save(
+                model.state_dict(), 
+                f"{config.basedir}/trained_models/{get_model_filename(config, epoch)}"
             )
-            torch.save(model.state_dict(), f"{config.basedir}/trained_models/{outfile}")
 
         output["train_loss"].append(train_loss)
         output["test_loss"].append(test_loss)
