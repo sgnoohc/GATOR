@@ -26,11 +26,11 @@ def train(args, model, device, train_loader, optimizer, epoch):
     model.train()
     epoch_t0 = time()
     losses = []
-    n_batches = len(train_loader)
-    for batch_i, data in enumerate(train_loader):
-        # Log start of batch
-        if batch_i % args.log_interval == 0:
-            print(f"[Epoch {epoch}, {batch_i}/{n_batches} ({100*batch_i/n_batches:.2g}%)]")
+    n_events = len(train_loader)
+    for event_i, data in enumerate(train_loader):
+        # Log start
+        if event_i % args.log_interval == 0:
+            print(f"[Epoch {epoch}, {event_i}/{n_events} ({100*event_i/n_events:.2g}%)]")
             if args.dry_run:
                 break
 
@@ -71,7 +71,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
 def validate(model, device, val_loader):
     model.eval()
     opt_thresholds, accs = [], []
-    for batch_i, data in enumerate(val_loader):
+    for data in val_loader:
         data = data.to(device)
         output = model(data.x, data.edge_index, data.edge_attr)
         y, output = data.y, output.squeeze()
@@ -101,7 +101,7 @@ def test(model, device, test_loader, thresh=0.5):
     model.eval()
     losses, accs = [], []
     with torch.no_grad():
-        for batch_i, data in enumerate(test_loader):
+        for data in test_loader:
             data = data.to(device)
             output = model(data.x, data.edge_index, data.edge_attr)
             TP = torch.sum((data.y == 1).squeeze() & (output >= thresh).squeeze()).item()
