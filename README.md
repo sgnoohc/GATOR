@@ -20,9 +20,9 @@ Within the node:
 
     cd GATOR/gnn
     source setup_hpg.sh
-    python graphdata.py
-    python train.py
-    python inference.py
+    python ingress.py configs/LS.json
+    python train.py configs/LS.json
+    python infer.py configs/LS.json
     make -j
     ./writetree
 
