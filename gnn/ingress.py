@@ -1,22 +1,21 @@
 #!/bin/env python
 
-import json
+import os
+import argparse
 import uproot
+import numpy as np
 import torch
 from torch_geometric.data import Data, DataLoader
 from torch_geometric.utils import to_undirected
-import numpy as np
-import os
-import getpass
 
 from configs import GatorConfig
 
-def ingress(entry_start, entry_stop, config):
+def ingress(entry_start, entry_stop, config, tag, save=True):
 
     tree = uproot.open(f"{config.ingress.input_file}:{config.ingress.ttree_name}")
 
     data_list = []
-    for batch in tree.iterate(step_size=1, filter_name=config.ingress.branch_filter, entry_start=entry_start, entry_stop=entry_stop):
+    for batch in tree.iterate(step_size=1, filter_name=config.ingress.get("branch_filter", None), entry_start=entry_start, entry_stop=entry_stop):
 
         batch = batch[0,:] # only one event per batch
 
@@ -43,17 +42,22 @@ def ingress(entry_start, entry_stop, config):
 
         data_list.append(data)
 
-    print(data_list)
+    if save:
+        outfile = f"{config.basedir}/{config.name}_{tag}.pt"
+        torch.save(data_list, outfile)
+        print(f"Wrote {outfile}")
+
     return data_list
 
 if __name__ == "__main__":
+    # CLI
+    parser = argparse.ArgumentParser(description="Ingress data for GNN input")
+    parser.add_argument("config_json", type=str, help="config JSON")
+    args = parser.parse_args()
 
-    config = GatorConfig.from_json("configs/LS.json")
+    config = GatorConfig.from_json(args.config_json)
     os.makedirs(config.basedir, exist_ok=True)
 
-    data = ingress(0, 95, config)
-    torch.save(data, f"{config.basedir}/{config.name}_train.pt")
-    data = ingress(95, 100, config)
-    torch.save(data, f"{config.basedir}/{config.name}_test.pt")
-    data = ingress(100, 105, config)
-    torch.save(data, f"{config.basedir}/{config.name}_valid.pt")
+    ingress(0, 95, config, "train")
+    ingress(95, 100, config, "test")
+    ingress(100, 105, config, "val")
