@@ -12,7 +12,7 @@ from configs import GatorConfig
 
 class RelationalModel(nn.Module):
     def __init__(self, input_size, output_size, hidden_size):
-        super(RelationalModel, self).__init__()
+        super().__init__()
 
         self.layers = nn.Sequential(
             nn.Linear(input_size, hidden_size),
@@ -27,7 +27,7 @@ class RelationalModel(nn.Module):
 
 class ObjectModel(nn.Module):
     def __init__(self, input_size, output_size, hidden_size):
-        super(ObjectModel, self).__init__()
+        super().__init__()
 
         self.layers = nn.Sequential(
             nn.Linear(input_size, hidden_size),
@@ -42,7 +42,7 @@ class ObjectModel(nn.Module):
 
 class InteractionNetwork(MessagePassing):
     def __init__(self, R1, O, R2):
-        super(InteractionNetwork).__init__(aggr="max", flow="source_to_target")
+        super().__init__(aggr="max", flow="source_to_target")
         self.R1 = R1
         self.O = O
         self.R2 = R2
@@ -103,4 +103,4 @@ class ChangNet(InteractionNetwork):
             n_hidden_layers
         )
 
-        super(ChangNet).__init__(R1, O, R2)
+        super().__init__(R1, O, R2)
