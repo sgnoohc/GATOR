@@ -5,7 +5,7 @@ import argparse
 import uproot
 import numpy as np
 import torch
-from torch_geometric.data import Data, DataLoader
+from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
 
 from configs import GatorConfig
