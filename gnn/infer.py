@@ -25,7 +25,7 @@ def infer(model, device, test_loader):
         for truth, score in zip(data.y, output):
             csv_rows.append(f"{event_i},{int(truth)},{float(score)}")
 
-        return csv_rows, times
+    return csv_rows, times
 
 if __name__ == "__main__":
     # CLI
