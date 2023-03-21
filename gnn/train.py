@@ -10,7 +10,7 @@ from torch.optim.lr_scheduler import StepLR
 from torch.nn import functional as F
 
 import models
-from configs import GatorConfig
+from utils import GatorConfig
 
 def get_model_filename(config, epoch):
     return (
@@ -44,6 +44,9 @@ def train(args, model, device, train_loader, optimizer, epoch):
             for ii, (yy, oo) in enumerate(zip(y, output)):
                 if ii < 0:
                     print(yy, oo)
+
+        if torch.any(torch.isnan(output)):
+            raise ValueError("Output contains NaN values!")
 
         loss = F.binary_cross_entropy(output, y, reduction="mean")
 

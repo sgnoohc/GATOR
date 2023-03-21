@@ -7,13 +7,13 @@ import numpy as np
 import torch
 
 import models
-from configs import GatorConfig
+from utils import GatorConfig
 from train import get_model_filename
 
-def infer(model, device, test_loader):
+def infer(model, device, loader, output_csv=None):
     csv_rows = ["idx,truth,score"]
     times = []
-    for event_i, data in enumerate(test_loader):
+    for event_i, data in enumerate(loader):
         data = data.to(device)
         model = model.to(device)
 
@@ -25,7 +25,12 @@ def infer(model, device, test_loader):
         for truth, score in zip(data.y, output):
             csv_rows.append(f"{event_i},{int(truth)},{float(score)}")
 
-    return csv_rows, times
+    if output_csv:
+        with open(output_csv, "w") as f:
+            f.write("\n".join(csv_rows))
+            print(f"Wrote {output_csv}")
+
+    return times
 
 if __name__ == "__main__":
     # CLI
@@ -49,10 +54,7 @@ if __name__ == "__main__":
     model.eval()
 
     test_loader = torch.load(f"{config.basedir}/{config.name}_test.pt")
-
-    csv_rows, times = infer(model, device, test_loader)
+    times = infer(model, device, test_loader, f"{config.basedir}/inference/{config.name}_test.csv")
+    train_loader = torch.load(f"{config.basedir}/{config.name}_train.pt")
+    times += infer(model, device, train_loader, f"{config.basedir}/inference/{config.name}_train.csv")
     print(f"Avg. inference time: {sum(times)/len(times)}s")
-    outfile = f"{config.basedir}/inference/{config.name}.csv"
-    with open(outfile, "w") as f:
-        f.write("\n".join(csv_rows))
-        print(f"Wrote {outfile}")

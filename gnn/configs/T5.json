@@ -1,30 +1,52 @@
 {
-    "undirected": false,
-    "edge_indices": [
-        "t5_t3_idx0",
-        "t5_t3_idx1"
-    ],
-    "edge_features": [
-        "t5_pt",
-        "t5_eta",
-        "t5_phi",
-    ],
-    "node_features": [
-        "t3_0_x",
-        "t3_0_y",
-        "t3_0_z",
-        "t3_0_r",
-        "t3_0_dr",
-        "t3_2_x",
-        "t3_2_y",
-        "t3_2_z",
-        "t3_2_r",
-        "t3_2_dr",
-        "t3_4_x",
-        "t3_4_y",
-        "t3_4_z",
-        "t3_4_r",
-        "t3_4_dr"
-    ],
-    "truth_label": "t5_isFake"
+    "basedir": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2",
+    "name": "QuintupletClassifier",
+    "model": {
+        "name": "ChangNet",
+        "n_hidden_layers": 200,
+        "n_message_features": 17,
+        "n_message_passing_rounds": 3,
+        "message_aggregator": "max"
+    },
+    "ingress": {
+        "input_file": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnNtuple_T3T5.root",
+        "ttree_name": "tree", 
+        "undirected": false,
+        "edge_indices": [
+            "t5_t3_idx0",
+            "t5_t3_idx1"
+        ],
+        "edge_features": [
+            "t5_pt",
+            "t5_eta",
+            "t5_phi",
+            "t5_chiSquared"
+        ],
+        "node_features": [
+            "t3_pt",
+            "t3_eta",
+            "t3_phi",
+            "t3_0_z",
+            "t3_0_r",
+            "t3_0_dr",
+            "t3_2_z",
+            "t3_2_r",
+            "t3_2_dr",
+            "t3_4_z",
+            "t3_4_r",
+            "t3_4_dr"
+        ],
+        "truth_label": "t5_isFake",
+        "branch_filter": "/(t3|t5)_*/"
+    },
+    "train": {
+        "train_batch_size": 64,
+        "test_batch_size": 1000,
+        "learning_rate": 0.002,
+        "learning_rate_step_gamma": 0.5,
+        "learning_rate_step_size": 5,
+        "pt_cutoff": 2,
+        "seed": 1234,
+        "construction": "heptrkx_classic"
+    }
 }

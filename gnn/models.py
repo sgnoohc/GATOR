@@ -8,7 +8,7 @@ from torch_geometric.data import Data, DataLoader
 from torch_geometric.nn import MessagePassing
 from torch.nn import Sequential as Seq, Linear, ReLU, Sigmoid
 
-from configs import GatorConfig
+from utils import GatorConfig
 
 class RelationalModel(nn.Module):
     def __init__(self, input_size, output_size, hidden_size):
@@ -41,36 +41,40 @@ class ObjectModel(nn.Module):
         return self.layers(C)
 
 class InteractionNetwork(MessagePassing):
-    def __init__(self, R1, O, R2):
-        super().__init__(aggr="max", flow="source_to_target")
-        self.R1 = R1
-        self.O = O
-        self.R2 = R2
-        self.E: Tensor = Tensor()
+    def __init__(self, message_mlp, readout_mlp, edge_classifier, n_msgpass_rounds=1, msg_aggr="max"):
+        super().__init__(aggr=msg_aggr, flow="source_to_target")
+        self.message_mlp = message_mlp
+        self.readout_mlp = readout_mlp
+        self.edge_classifier = edge_classifier
+        self.n_msgpass_rounds = n_msgpass_rounds # number of rounds of message passing
+        self.msg: Tensor = Tensor()
 
     def forward(self, x: Tensor, edge_index: Tensor, edge_attr: Tensor) -> Tensor:
-        # type: (Tensor, Tensor, Tensor) -> Tensor
+        """
+        Run forward pass of InteractionNetwork
+        """
+        # Run first round of message passing
+        x_latent = self.propagate(edge_index, x=x, edge_attr=edge_attr, size=None)
+        # Run additional rounds of message passing
+        for round_i in range(self.n_msgpass_rounds - 1):
+            x_latent = self.propagate(edge_index, x=x_latent, edge_attr=edge_attr, size=None)
 
-        # Edge Classification Model
-        # propagate_type: (x: Tensor, edge_attr: Tensor)
-        x_tilde = self.propagate(edge_index, x=x, edge_attr=edge_attr, size=None)
-        m2 = torch.cat([x_tilde[edge_index[1]],
-                        x_tilde[edge_index[0]],
-                        self.E], dim=1)
-        return torch.sigmoid(self.R2(m2))
+        m2 = torch.cat([x_latent[edge_index[1]], x_latent[edge_index[0]], self.msg], dim=1)
+
+        return torch.sigmoid(self.edge_classifier(m2))
 
     def message(self, x_i, x_j, edge_attr):
         # Message Calculation Model
         # x_i --> incoming
         # x_j --> outgoing
         m1 = torch.cat([x_i, x_j, edge_attr], dim=1)
-        self.E = self.R1(m1)
-        return self.E
+        self.msg = self.message_mlp(m1)
+        return self.msg
 
     def update(self, aggr_out, x):
         # Latent Node Calculation Model
         c = torch.cat([x, aggr_out], dim=1)
-        return self.O(c)
+        return self.readout_mlp(c)
 
 class ChangNet(InteractionNetwork):
     def __init__(self, config: GatorConfig):
@@ -80,27 +84,33 @@ class ChangNet(InteractionNetwork):
         n_lnode_features = config.model.get("n_latent_node_features", n_node_features)
         n_hidden_layers = config.model.get("n_hidden_layers", 200)
 
-        # Message Calculation Model (Node, Edge, Node) -> (Message)
+        # Message calculation model (Node, Edge, Node) -> (Message)
         # i.e. "message function"
-        R1 = RelationalModel(
+        message_mlp = RelationalModel(
             2*n_node_features + n_edge_features,
             n_msg_features,
             n_hidden_layers
         )
 
-        # Latent Node Calculation Model (Node, Sum_i Message_i) -> (Latent Node)
+        # Latent node calculation model (Node, Sum_i Message_i) -> (Latent Node)
         # i.e. "readout function"
-        O = ObjectModel(
+        readout_mlp = ObjectModel(
             n_node_features + n_msg_features,
             n_lnode_features,
             n_hidden_layers
         )
 
-        # Edge Classification Model (Latent Node, Message, Latent Node) -> (1 dim edge score)
-        R2 = RelationalModel(
+        # Edge classification model (Latent Node, Message, Latent Node) -> (1 dim edge score)
+        edge_classifier = RelationalModel(
             2*n_lnode_features + n_msg_features,
             1,
             n_hidden_layers
         )
 
-        super().__init__(R1, O, R2)
+        super().__init__(
+            message_mlp, 
+            readout_mlp, 
+            edge_classifier, 
+            n_msgpass_rounds=config.model.get("n_message_passing_rounds", 1),
+            msg_aggr=config.model.get("message_aggregator", "max")
+        )

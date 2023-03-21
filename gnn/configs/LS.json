@@ -5,7 +5,8 @@
         "name": "ChangNet",
         "n_hidden_layers": 200,
         "n_message_features": 17,
-        "n_latent_node_features": 7
+        "n_message_passing_rounds": 1,
+        "message_aggregator": "max"
     },
     "ingress": {
         "input_file": "/blue/p.chang/p.chang/data/lst/CMSSW_12_2_0_pre2/LSTGnnNtuple_ttbar_PU200.root",
@@ -35,7 +36,6 @@
     "train": {
         "train_batch_size": 64,
         "test_batch_size": 1000,
-        "n_epochs": 50,
         "learning_rate": 0.005,
         "learning_rate_step_gamma": 0.7,
         "learning_rate_step_size": 5,
