@@ -54,7 +54,13 @@ if __name__ == "__main__":
     model.eval()
 
     test_loader = torch.load(f"{config.basedir}/{config.name}_test.pt")
-    times = infer(model, device, test_loader, f"{config.basedir}/inference/{config.name}_test.csv")
+    times = infer(
+        model, device, test_loader, 
+        f"{config.basedir}/inference/{config.name}_epoch{args.epoch}_test.csv"
+    )
     train_loader = torch.load(f"{config.basedir}/{config.name}_train.pt")
-    times += infer(model, device, train_loader, f"{config.basedir}/inference/{config.name}_train.csv")
+    times += infer(
+        model, device, train_loader, 
+        f"{config.basedir}/inference/{config.name}_epoch{args.epoch}_train.csv"
+    )
     print(f"Avg. inference time: {sum(times)/len(times)}s")

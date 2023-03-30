@@ -8,7 +8,7 @@ import torch
 from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
 
-from configs import GatorConfig
+from utils import GatorConfig
 
 def ingress(entry_start, entry_stop, config, tag, save=True):
 
@@ -23,12 +23,25 @@ def ingress(entry_start, entry_stop, config, tag, save=True):
         edge_idxs = torch.tensor([batch[n].to_list() for n in config.ingress.edge_indices], dtype=torch.long)
 
         # Get edge features
-        edge_attr = torch.tensor([batch[n].to_list() for n in config.ingress.edge_features], dtype=torch.float)
+        edge_attr = []
+        # TEMP START: temp solution for bug in LST output
+        for branch_name in config.ingress.edge_features:
+            feature = batch[branch_name].to_numpy()
+            feature[np.isinf(feature)] = 1000
+            edge_attr.append(list(feature))
+        edge_attr = torch.tensor(edge_attr, dtype=torch.float)
         edge_attr = torch.transpose(edge_attr, 0, 1)
+        edge_attr -= edge_attr.min(1, keepdim=True)[0]
+        edge_attr /= edge_attr.max(1, keepdim=True)[0]
+        # TEMP END
+        # edge_attr = torch.tensor([batch[n].to_list() for n in config.ingress.edge_features], dtype=torch.float)
+        # edge_attr = torch.transpose(edge_attr, 0, 1)
 
         # Get node features
         node_attr = torch.tensor([batch[n].to_list() for n in config.ingress.node_features], dtype=torch.float)
         node_attr = torch.transpose(node_attr, 0, 1)
+        node_attr -= node_attr.min(1, keepdim=True)[0]
+        node_attr /= node_attr.max(1, keepdim=True)[0]
 
         # Get truth labels
         truth = torch.tensor(~(batch[config.ingress.truth_label].to_numpy().astype(bool)), dtype=torch.float)
@@ -58,6 +71,6 @@ if __name__ == "__main__":
     config = GatorConfig.from_json(args.config_json)
     os.makedirs(config.basedir, exist_ok=True)
 
-    ingress(0, 95, config, "train")
-    ingress(95, 100, config, "test")
-    ingress(100, 105, config, "val")
+    ingress(0, 150, config, "train")
+    ingress(150, 160, config, "test")
+    ingress(160, 170, config, "val")
