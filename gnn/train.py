@@ -1,6 +1,6 @@
 #!/bin/env python
-
 import os
+import json
 import argparse
 from time import time
 import numpy as np
@@ -16,7 +16,8 @@ def get_model_filename(config, epoch):
     return (
         config.name
         + f"_model{config.model.name}"
-        + f"_hiddensize{config.model.n_hidden_layers}"
+        + f"_nhidden{config.model.n_hidden_layers}"
+        + f"_hiddensize{config.model.hidden_size}"
         + f"_epoch{epoch}"
         + f"_lr{config.train.learning_rate}"
         + f"_0.8GeV_redo.pt"
@@ -163,7 +164,7 @@ if __name__ == "__main__":
     total_trainable_params = sum(p.numel() for p in model.parameters())
     print(f"total trainable params: {total_trainable_params}")
 
-    optimizer = optim.Adam(model.parameters(), lr=config.train.learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=config.train.learning_rate, weight_decay=1e-5)
     scheduler = StepLR(
         optimizer, 
         step_size=config.train.learning_rate_step_size, 
@@ -188,5 +189,9 @@ if __name__ == "__main__":
         output["train_loss"].append(train_loss)
         output["test_loss"].append(test_loss)
         output["test_acc"].append(test_acc)
+
+    history_json = f"{config.basedir}/trained_models/{config.name}_history.json"
+    with open(history_json, "w") as f_out:
+        json.dump(output, f_out)
 
     print(output)
