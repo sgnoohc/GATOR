@@ -11,14 +11,18 @@ from torch.nn import Sequential as Seq, Linear, ReLU, Sigmoid
 from utils import GatorConfig
 
 class RelationalModel(nn.Module):
-    def __init__(self, input_size, output_size, hidden_size):
+    def __init__(self, input_size, output_size, n_hidden_layers, hidden_size):
         super().__init__()
+
+        hidden_layers = []
+        for layer_i in range(n_hidden_layers):
+            hidden_layers.append(nn.Linear(hidden_size, hidden_size))
+            hidden_layers.append(nn.ReLU())
 
         self.layers = nn.Sequential(
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
+            *hidden_layers,
             nn.Linear(hidden_size, output_size),
         )
 
@@ -26,14 +30,18 @@ class RelationalModel(nn.Module):
         return self.layers(m)
 
 class ObjectModel(nn.Module):
-    def __init__(self, input_size, output_size, hidden_size):
+    def __init__(self, input_size, output_size, n_hidden_layers, hidden_size):
         super().__init__()
+
+        hidden_layers = []
+        for layer_i in range(n_hidden_layers):
+            hidden_layers.append(nn.Linear(hidden_size, hidden_size))
+            hidden_layers.append(nn.ReLU())
 
         self.layers = nn.Sequential(
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
+            *hidden_layers,
             nn.Linear(hidden_size, output_size),
         )
 
@@ -82,30 +90,41 @@ class ChangNet(InteractionNetwork):
         n_node_features = len(config.ingress.node_features)
         n_msg_features = config.model.get("n_message_features", 17)
         n_lnode_features = config.model.get("n_latent_node_features", n_node_features)
-        n_hidden_layers = config.model.get("n_hidden_layers", 200)
+        n_hidden_layers = config.model.get("n_hidden_layers", 1)
+        hidden_size = config.model.get("hidden_size", 200)
 
+        print("---- ChangNet Config ----")
         # Message calculation model (Node, Edge, Node) -> (Message)
         # i.e. "message function"
         message_mlp = RelationalModel(
             2*n_node_features + n_edge_features,
             n_msg_features,
-            n_hidden_layers
+            n_hidden_layers,
+            hidden_size
         )
+        print("Message MLP:")
+        print(message_mlp)
 
         # Latent node calculation model (Node, Sum_i Message_i) -> (Latent Node)
         # i.e. "readout function"
         readout_mlp = ObjectModel(
             n_node_features + n_msg_features,
             n_lnode_features,
-            n_hidden_layers
+            n_hidden_layers,
+            hidden_size
         )
+        print("Readout MLP:")
+        print(readout_mlp)
 
         # Edge classification model (Latent Node, Message, Latent Node) -> (1 dim edge score)
         edge_classifier = RelationalModel(
             2*n_lnode_features + n_msg_features,
             1,
-            n_hidden_layers
+            n_hidden_layers,
+            hidden_size
         )
+        print("Edge classifier:")
+        print(edge_classifier)
 
         super().__init__(
             message_mlp, 

@@ -3,13 +3,14 @@
     "name": "QuintupletClassifier",
     "model": {
         "name": "ChangNet",
-        "n_hidden_layers": 200,
-        "n_message_features": 17,
+        "n_hidden_layers": 4,
+        "hidden_size": 200,
+        "n_message_features": 10,
         "n_message_passing_rounds": 3,
-        "message_aggregator": "max"
+        "message_aggregator": "sum"
     },
     "ingress": {
-        "input_file": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnNtuple_T3T5.root",
+        "input_file": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnNtuple_noT5Chi2_noPixelsInTCs.root",
         "ttree_name": "tree", 
         "undirected": false,
         "edge_indices": [
@@ -20,7 +21,10 @@
             "t5_pt",
             "t5_eta",
             "t5_phi",
-            "t5_chiSquared"
+            "t5_chiSquared",
+            "t5_innerRadius",
+            "t5_bridgeRadius",
+            "t5_outerRadius"
         ],
         "node_features": [
             "t3_pt",
@@ -29,12 +33,15 @@
             "t3_0_z",
             "t3_0_r",
             "t3_0_dr",
+            "t3_0_layer",
             "t3_2_z",
             "t3_2_r",
             "t3_2_dr",
+            "t3_2_layer",
             "t3_4_z",
             "t3_4_r",
-            "t3_4_dr"
+            "t3_4_dr",
+            "t3_4_layer"
         ],
         "truth_label": "t5_isFake",
         "branch_filter": "/(t3|t5)_*/"
@@ -43,10 +50,8 @@
         "train_batch_size": 64,
         "test_batch_size": 1000,
         "learning_rate": 0.002,
-        "learning_rate_step_gamma": 0.5,
-        "learning_rate_step_size": 5,
-        "pt_cutoff": 2,
-        "seed": 1234,
-        "construction": "heptrkx_classic"
+        "learning_rate_step_gamma": 0.8,
+        "learning_rate_step_size": 25,
+        "seed": 1234
     }
 }

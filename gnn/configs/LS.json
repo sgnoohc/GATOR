@@ -3,7 +3,8 @@
     "name": "LineSegmentClassifier",
     "model": {
         "name": "ChangNet",
-        "n_hidden_layers": 200,
+        "n_hidden_layers": 1,
+        "hidden_size": 200,
         "n_message_features": 17,
         "n_message_passing_rounds": 1,
         "message_aggregator": "max"
@@ -39,8 +40,6 @@
         "learning_rate": 0.005,
         "learning_rate_step_gamma": 0.7,
         "learning_rate_step_size": 5,
-        "pt_cutoff": 2,
-        "seed": 1234,
-        "construction": "heptrkx_classic"
+        "seed": 1234
     }
 }
