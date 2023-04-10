@@ -1,6 +1,20 @@
 import torch
 from torch.utils.data import Dataset
 
+class EdgeDataBatch():
+    def __init__(self, batch):
+        data = list(zip(*batch))
+        self.x = torch.stack(data[0])
+        self.edge_index = data[1]
+        self.edge_attr = torch.stack(data[2])
+        self.y = torch.stack(data[3])
+
+    def to(self, device):
+        self.x = self.x.to(device)
+        self.edge_attr = self.edge_attr.to(device)
+        self.y = self.y.to(device)
+        return self
+
 class EdgeData:
     def __init__(self, node_attr, edge_idxs, edge_attr, labels):
         self.x = node_attr
@@ -9,21 +23,21 @@ class EdgeData:
         self.y = labels
 
     def to(self, device):
-        self.x.to(device)
-        self.edge_attr.to(device)
-        self.y.to(device)
+        self.x = self.x.to(device)
+        self.edge_attr = self.edge_attr.to(device)
+        self.y = self.y.to(device)
         return self
 
 class EdgeDataset(Dataset):
     def __init__(self, pyg_data):
         self.data = pyg_data
         idx_ranges = []
-        for event_i in range(len(self.data)):
-            if event_i == 0:
-                idx_ranges.append((0, self.data[event_i].num_edges - 1))
+        for graph_i in range(len(self.data)):
+            if graph_i == 0:
+                idx_ranges.append((0, self.data[graph_i].num_edges - 1))
             else:
                 n = idx_ranges[-1][-1]
-                idx_ranges.append((n + 1, n + self.data[event_i].num_edges - 1))
+                idx_ranges.append((n + 1, n + self.data[graph_i].num_edges))
 
         self.__idx_range = self.__range_lims(idx_ranges)
         self.__idx_ranges = {}
@@ -90,12 +104,11 @@ class EdgeDataset(Dataset):
         data = self.data[event]
         edge_attr = data.edge_attr[idx - low]
         i, j = data.edge_index[:,idx - low]
-        node_i = data.x[i].unsqueeze(1)
-        node_j = data.x[j].unsqueeze(1)
-        node_attr = torch.cat((node_i, node_j), dim=1)
-        return EdgeData(
-            torch.transpose(node_attr, 0, 1),
+        node_i = data.x[i].transpose(0, -1)
+        node_j = data.x[j].transpose(0, -1)
+        return (
+            torch.cat((node_i, node_j)),
             (i, j),
             edge_attr,
-            data.y[idx - low].unsqueeze(1)
+            data.y[idx - low].reshape(1)
         )

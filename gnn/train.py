@@ -5,12 +5,12 @@ import argparse
 from time import time
 import numpy as np
 import torch
+import torch.optim.lr_scheduler as lr_schedulers
 from torch import optim
-from torch.optim.lr_scheduler import StepLR
 from torch.nn import functional as F
 
 import models
-from utils import GatorConfig
+from utils import GatorConfig, print_title
 
 def get_model_filename(config, epoch):
     return (
@@ -20,7 +20,7 @@ def get_model_filename(config, epoch):
         + f"_hiddensize{config.model.hidden_size}"
         + f"_epoch{epoch}"
         + f"_lr{config.train.learning_rate}"
-        + f"_0.8GeV_redo.pt"
+        + f"_0.8GeV_model.pt"
     )
 
 def train(args, model, device, train_loader, optimizer, epoch):
@@ -31,7 +31,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
     for event_i, data in enumerate(train_loader):
         # Log start
         if event_i % args.log_interval == 0:
-            print(f"[Epoch {epoch}, {event_i}/{n_events} ({100*event_i/n_events:.2g}%)]")
+            print(f"[Epoch {epoch}, {event_i}/{n_events} ({100*event_i/n_events:.2g}%)]", flush=True)
             if args.dry_run:
                 break
 
@@ -68,8 +68,8 @@ def train(args, model, device, train_loader, optimizer, epoch):
 
         losses.append(loss.item())
 
-    print(f"runtime: {time() - epoch_t0}s")
-    print(f"train loss: {np.mean(losses)}")
+    print(f"runtime: {time() - epoch_t0}s", flush=True)
+    print(f"train loss: {np.mean(losses):0.6f}", flush=True)
     return np.mean(losses)
 
 def validate(model, device, val_loader):
@@ -78,13 +78,13 @@ def validate(model, device, val_loader):
     for data in val_loader:
         data = data.to(device)
         output = model(data.x, data.edge_index, data.edge_attr)
-        y, output = data.y, output.squeeze()
+        y, output = data.y, output.squeeze(1)
         loss = F.binary_cross_entropy(output, y, reduction="mean").item()
 
         # define optimal threshold (thresh) where TPR = TNR
         diff, opt_thresh, opt_acc = 100, 0, 0
         best_tpr, best_tnr = 0, 0
-        for thresh in np.arange(0.001, 0.5, 0.001):
+        for thresh in np.linspace(0.001, 0.999, 500):
             TP = torch.sum((y == 1) & (output >= thresh)).item()
             TN = torch.sum((y == 0) & (output <  thresh)).item()
             FP = torch.sum((y == 0) & (output >= thresh)).item()
@@ -98,7 +98,7 @@ def validate(model, device, val_loader):
         opt_thresholds.append(opt_thresh)
         accs.append(opt_acc)
 
-    print(f"val accuracy: {np.mean(accs):.4f}")
+    print(f"val accuracy: {np.mean(accs):0.6f}", flush=True)
     return np.mean(opt_thresholds)
 
 def test(model, device, test_loader, thresh=0.5):
@@ -117,8 +117,8 @@ def test(model, device, test_loader, thresh=0.5):
             accs.append(acc)
             losses.append(loss)
 
-    print(f"test loss: {np.mean(losses):.4f}")
-    print(f"test accuracy: {np.mean(accs):.4f}")
+    print(f"test loss: {np.mean(losses):0.6f}", flush=True)
+    print(f"test accuracy: {np.mean(accs):0.6f}", flush=True)
     return np.mean(losses), np.mean(accs)
 
 if __name__ == "__main__":
@@ -147,7 +147,10 @@ if __name__ == "__main__":
     config = GatorConfig.from_json(args.config_json)
     os.makedirs(f"{config.basedir}/trained_models", exist_ok=True)
 
-    print(f"---- Initialization ----")
+    print_title("Configuration")
+    print(config)
+
+    print_title("Initialization")
     torch.manual_seed(config.train.seed)
     print(f"seed: {config.train.seed}")
     use_cuda = torch.cuda.is_available()
@@ -158,33 +161,50 @@ if __name__ == "__main__":
     test_loader  = torch.load(f"{config.basedir}/{config.name}_test.pt")
     val_loader   = torch.load(f"{config.basedir}/{config.name}_val.pt")
 
+    if config.model.name == "DNN":
+        from datasets import EdgeDataset, EdgeDataBatch
+        from torch.utils.data import DataLoader
+        # Hacky PyG graph-level GNN inputs --> edge-level DNN inputs
+        train_loader = DataLoader(
+            EdgeDataset(train_loader), batch_size=config.train.train_batch_size, shuffle=True,
+            collate_fn=lambda batch: EdgeDataBatch(batch)
+        )
+        test_loader = DataLoader(
+            EdgeDataset(test_loader), batch_size=config.train.test_batch_size, shuffle=True,
+            collate_fn=lambda batch: EdgeDataBatch(batch)
+        )
+        val_loader = DataLoader(
+            EdgeDataset(val_loader), batch_size=config.train.val_batch_size, shuffle=True,
+            collate_fn=lambda batch: EdgeDataBatch(batch)
+        )
+
     # Load model
     Model = getattr(models, config.model.name)
     model = Model(config).to(device)
     total_trainable_params = sum(p.numel() for p in model.parameters())
     print(f"total trainable params: {total_trainable_params}")
 
-    optimizer = optim.Adam(model.parameters(), lr=config.train.learning_rate, weight_decay=1e-5)
-    scheduler = StepLR(
-        optimizer, 
-        step_size=config.train.learning_rate_step_size, 
-        gamma=config.train.learning_rate_step_gamma
+    optimizer = optim.Adam(
+        model.parameters(), 
+        lr=config.train.get("learning_rate", 0.001), 
+        weight_decay=config.train.get("weight_decay", 0)
     )
+    Scheduler = getattr(lr_schedulers, config.train.scheduler_name)
+    scheduler = Scheduler(optimizer, **config.train.scheduler_kwargs)
 
     output = {"train_loss": [], "test_loss": [], "test_acc": []}
     for epoch in range(1, args.n_epochs + 1):
-        print(f"---- Epoch {epoch} ----")
+        print_title(f"Epoch {epoch}")
         train_loss = train(args, model, device, train_loader, optimizer, epoch)
         thresh = validate(model, device, val_loader)
-        print(f"optimal threshold: {thresh}")
+        print(f"optimal threshold: {thresh}", flush=True)
         test_loss, test_acc = test(model, device, test_loader, thresh=thresh)
         scheduler.step()
 
-        if not args.dry_run:
-            torch.save(
-                model.state_dict(), 
-                f"{config.basedir}/trained_models/{get_model_filename(config, epoch)}"
-            )
+        if not args.dry_run and epoch % 5 == 0:
+            outname = f"{config.basedir}/trained_models/{get_model_filename(config, epoch)}"
+            torch.save(model.state_dict(), outname)
+            print(f"Wrote {outname}")
 
         output["train_loss"].append(train_loss)
         output["test_loss"].append(test_loss)
@@ -193,5 +213,6 @@ if __name__ == "__main__":
     history_json = f"{config.basedir}/trained_models/{config.name}_history.json"
     with open(history_json, "w") as f_out:
         json.dump(output, f_out)
+    print(f"Wrote {history_json}")
 
     print(output)
