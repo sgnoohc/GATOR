@@ -3,17 +3,18 @@
 import os
 import argparse
 from time import time
-import numpy as np
+
 import torch
+from tqdm import tqdm
 
 import models
 from utils import GatorConfig
 from train import get_model_filename
 
-def infer(model, device, loader, output_csv=None):
+def infer(model, device, loader, output_csv):
     csv_rows = ["idx,truth,score"]
     times = []
-    for event_i, data in enumerate(loader):
+    for event_i, data in enumerate(tqdm(loader)):
         data = data.to(device)
         model = model.to(device)
 
@@ -25,10 +26,9 @@ def infer(model, device, loader, output_csv=None):
         for truth, score in zip(data.y, output):
             csv_rows.append(f"{event_i},{int(truth)},{float(score)}")
 
-    if output_csv:
-        with open(output_csv, "w") as f:
-            f.write("\n".join(csv_rows))
-            print(f"Wrote {output_csv}")
+    with open(output_csv, "w") as f:
+        f.write("\n".join(csv_rows))
+        print(f"Wrote {output_csv}")
 
     return times
 
@@ -54,13 +54,21 @@ if __name__ == "__main__":
     model.eval()
 
     test_loader = torch.load(f"{config.basedir}/{config.name}_test.pt")
+    train_loader = torch.load(f"{config.basedir}/{config.name}_train.pt")
+    
+    if config.model.name == "DNN":
+        from datasets import EdgeDataset, EdgeDataBatch
+        from torch.utils.data import DataLoader
+        # Hacky PyG graph-level GNN inputs --> edge-level DNN inputs
+        train_loader = DataLoader(EdgeDataset(train_loader), collate_fn=lambda batch: EdgeDataBatch(batch))
+        test_loader = DataLoader(EdgeDataset(test_loader), collate_fn=lambda batch: EdgeDataBatch(batch))
+
     times = infer(
         model, device, test_loader, 
-        f"{config.basedir}/inference/{config.name}_epoch{args.epoch}_test.csv"
+        saved_model.replace("trained_models", "inference").replace("_model.pt", "_test.csv")
     )
-    train_loader = torch.load(f"{config.basedir}/{config.name}_train.pt")
     times += infer(
         model, device, train_loader, 
-        f"{config.basedir}/inference/{config.name}_epoch{args.epoch}_train.csv"
+        saved_model.replace("trained_models", "inference").replace("_model.pt", "_train.csv")
     )
     print(f"Avg. inference time: {sum(times)/len(times)}s")
