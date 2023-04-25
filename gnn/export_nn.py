@@ -14,11 +14,11 @@ from utils import GatorConfig
 from train import get_model_filename
 
 MATMUL = """
-float {result}[N2];
+float {result}[{N2}];
 for (unsigned int col = 0; col < {N2}; ++col)
 {{
     {result}[col] = 0;
-    for (usngined int inner = 0; inner < {M}; ++inner)
+    for (unsigned int inner = 0; inner < {M}; ++inner)
     {{
         {result}[col] += {matrix1}[inner]*{matrix2}[inner][col];
     }}
@@ -28,16 +28,16 @@ for (unsigned int col = 0; col < {N2}; ++col)
 MATMUL = "\n".join(MATMUL.split("\n")[1:-1])
 
 RELU = """
-float {new}[N2];
+float {new}[{N2}];
 for (unsigned int col = 0; col < {N2}; ++col)
 {{
-    {new}[col] = max(0, {old}[col]);
+    {new}[col] = std::max(float(0), {old}[col]);
 }}
 """
 RELU = "\n".join(RELU.split("\n")[1:-1])
 
 SIGMOID = """
-float {new}[N2];
+float {new}[{N2}];
 for (unsigned int col = 0; col < {N2}; ++col)
 {{
     {new}[col] = exp({old}[col])/(exp({old}[col]) + 1);
@@ -131,12 +131,13 @@ def nn_to_cpp(config, model, name="neuralNetwork"):
     input_size = 2*n_node_features + n_edge_features
 
     cpp = Cpp()
-    cpp.add(f"__global__ float {name}(float x[{input_size}])")
+    cpp.add(f"__global__ float {name}(const float x[{input_size}])")
     cpp.add("{")
     cpp.indent()
     cpp.comment([
         f"Auto-generated from the following PyTorch (v{torch.__version__}) model:",
         f"{model}",
+        "",
         "Implements the calculation of the discriminant for a simple neural network"
     ])
     cpp.newline()
@@ -201,6 +202,7 @@ def tests_to_cpp(model, loader, n_tests=10, name="neuralNetwork"):
     cpp.comment([
         f"Auto-generated from the following PyTorch (v{torch.__version__}) model:",
         f"{model}",
+        "",
         "Implements several tests for a simple neural network"
     ])
     cpp.newline()
@@ -216,7 +218,7 @@ def tests_to_cpp(model, loader, n_tests=10, name="neuralNetwork"):
 
         output = model(data.x, data.edge_index, data.edge_attr)
         
-        cpp.add(f"std::cout << \"Test {test_i}: \" << {name}({feat_var}) << \" (obtained) \" << {output.item()} << \" (actual)\"")
+        cpp.add(f"std::cout << \"Test {test_i}: \" << {name}({feat_var}) << \" (obtained) \" << {output.item()} << \" (actual)\" << std::endl;")
         cpp.newline()
 
     cpp.dedent()
