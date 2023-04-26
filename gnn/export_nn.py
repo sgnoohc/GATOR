@@ -13,6 +13,69 @@ import models
 from utils import GatorConfig
 from train import get_model_filename
 
+SUPPORTED_ACTIVATIONS = [
+    nn.ReLU,
+    nn.Sigmoid
+]
+
+CUDAMATMULFUNC="""
+enum ActivationFunctions
+{
+    ReLU,
+    Sigmoid,
+    None
+};
+
+__global__ void neuralNetworkLayer(float *A, float *B, float* C, float* bias, int width, int C_rows, int C_cols, 
+                                   ActivationFunction activation)
+{
+    /**
+     * Computes the result of a single layer of a neural network:
+     * C = activation(AB + bias)
+     * where B is the matrix of weights and A is the input vector
+     */
+    int row = blockIdx.y*blockDim.y + threadIdx.y;   
+    int col = blockIdx.x*blockDim.x + threadIdx.x;
+    if (row < C_rows && col < C_cols)
+    {
+        float value = 0.;
+        for(int k = 0; k < width; k++)
+        {
+            value += A[row*width + k]*B[k*C_cols + col];
+        }
+        value += bias;
+        switch (activation)
+        {
+        case (ReLU):
+            C[row*C_cols + col] = std::max(float(0), value);
+        case (Sigmoid):
+            C[row*C_cols + col] = exp(value)/(exp(value) + 1);
+        default:
+            C[row*C_cols + col] = value;
+        }
+    }
+}
+"""
+CUDAMATMULFUNC = "\n".join(CUDAMATMULFUNC.split("\n")[1:-1])
+
+CUDAMATINIT="""
+// Initialize {matrix} and allocate Unified Memory for it (accessible from CPU or GPU)
+int {matrix}_rows, {matrix}_cols = {N}, {M};
+int {matrix}_size = {matrix}_rows*{matrix}_cols;
+float *{matrix};
+cudaMallocManaged(&{matrix}, {matrix}_size*sizeof(float));
+"""
+CUDAMATINIT = "\n".join(CUDAMATINIT.split("\n")[1:-1])
+
+CUDAMATMUL="""
+dim3 {C}_dim_grid({C}_cols/COL_TILE_WIDTH, {C}_rows/ROW_TILE_WIDTH, 1);
+dim3 {C}_dim_block(COL_TILE_WIDTH, ROW_TILE_WIDTH, 1);
+neuralNetworkLayer<float><<<{C}_dim_grid, {C}_dim_block>>>({A}, {B}, {C}, {bias}, {A}_cols, {C}_rows, {C}_cols, {activation});
+// Wait for GPU to finish before accessing on host
+cudaDeviceSynchronize();
+"""
+CUDAMATMUL = "\n".join(CUDAMATMUL.split("\n")[1:-1])
+
 MATMUL = """
 float {result}[{N2}];
 for (unsigned int col = 0; col < {N2}; ++col)
@@ -99,31 +162,119 @@ class Cpp:
         return "\n".join(self.cpp)
 
 def fmt(num):
-    decimals = 20
+    decimals = 2
     return f"{num:>{decimals+3}.{decimals}f}"
 
-def vector_to_cpp(name, vector):
-
+def vector_to_cpp(name, vector, init=True):
     cpp = Cpp()
     vec = [fmt(val) for val in vector.tolist()]
-    cpp.add(f"const float {name}[{len(vec)}] = {{ {','.join(vec)} }};")
+    if init:
+        cpp.add(f"const float {name}[{len(vec)}] = {{")
+    else:
+        cpp.add(f"{name} = {{")
+
+    cpp.indent()
+    cpp.add(",".join(vec))
+    cpp.dedent()
+    cpp.add("};")
 
     return cpp
 
-def matrix_to_cpp(name, matrix):
+def matrix_to_cpp(name, matrix, flat=False, init=True):
     n_x, n_y = matrix.size()
-
     cpp = Cpp()
-    cpp.add(f"const float {name}[{n_x}][{n_y}] = {{")
+    if init:
+        cpp.add(f"const float {name}[{n_x}][{n_y}] = {{")
+    else:
+        cpp.add(f"{name} = {{")
     cpp.indent()
 
     for row_i in range(n_x):
         row = [fmt(val) for val in matrix[row_i].tolist()]
-        cpp.add(f"{{ {','.join(row)} }},")
+        if flat:
+            cpp.add(f"{','.join(row)},")
+        else:
+            cpp.add(f"{{ {','.join(row)} }},")
 
     cpp.dedent()
     cpp.add("};")
     return cpp
+
+def nn_to_cuda(config, model, name="neuralNetwork"):
+    n_edge_features = len(config.ingress.edge_features)
+    n_node_features = len(config.ingress.node_features)
+    input_size = 2*n_node_features + n_edge_features
+
+    cpp = Cpp()
+    cpp.add("#include <iostream>")
+    cpp.add("#include <math.h>")
+    cpp.newline()
+    cpp.add("#define ROW_TILE_WIDTH 32")
+    cpp.add("#define COL_TILE_WIDTH 32")
+    cpp.newline()
+    cpp.add(CUDAMATMULFUNC)
+    cpp.newline()
+    cpp.add(f"float {name}(float* x)")
+    cpp.add("{")
+    cpp.indent()
+    cpp.comment([
+        f"Auto-generated from the following PyTorch (v{torch.__version__}) model:",
+        f"{model}",
+        "",
+        "Implements the calculation of the discriminant for a simple neural network",
+        "with some CUDA acceleration"
+    ])
+    cpp.newline()
+
+    prev_var = "x"
+    N1, M = 1, input_size
+    cpp.comment("Initialize input features and allocate Unified Memory for it (accessible from CPU or GPU)")
+    cpp.add(f"int {prev_var}_rows, {prev_var}_cols = {N1}, {M};")
+    cpp.add(f"int {prev_var}_size = {prev_var}_rows*{prev_var}_cols;")
+    cpp.add(f"cudaMallocManaged(&{prev_var}, {prev_var}_size*sizeof(float));")
+    cpp.newline()
+    for layer_i, layer in enumerate(model.layers):
+        if type(layer) == nn.Linear:
+            this_var = f"x_{layer_i}"
+            bias_var = f"bias_{layer_i}"
+            wgts_var = f"wgtT_{layer_i}"
+            M, N2 = layer.weight.T.size()
+            # Initialize matrices
+            cpp.add(CUDAMATINIT.format(matrix=this_var, N=N2, M=1))
+            cpp.add(CUDAMATINIT.format(matrix=bias_var, N=N2, M=1))
+            cpp.add(vector_to_cpp(bias_var, layer.bias, init=False).cpp)
+            cpp.add(CUDAMATINIT.format(matrix=wgts_var, N=N2, M=M))
+            cpp.add(matrix_to_cpp(wgts_var, layer.weight.T, flat=True, init=False).cpp)
+            # Add matmul call
+            cpp.comment(f"({layer_i}): {layer} => x = x*W_T + b")
+            if type(model.layers[layer_i+1]) in SUPPORTED_ACTIVATIONS:
+                activation = model.layers[layer_i+1].__str__()[:-2]
+            else:
+                activation = "None"
+            cpp.add(CUDAMATMUL.format(
+                A=prev_var,
+                B=wgts_var,
+                C=this_var,
+                bias=bias_var,
+                activation=activation
+            ))
+            cpp.newline()
+            # Free matrices
+            cpp.comment("Clean up")
+            cpp.add(f"cudaFree({prev_var});")
+            cpp.add(f"cudaFree({bias_var});")
+            cpp.add(f"cudaFree({wgts_var});")
+            prev_var = this_var
+            if layer_i == len(model.layers) - 2:
+                cpp.add(f"cudaFree({prev_var});")
+
+            cpp.newline()
+
+
+    cpp.add(f"return {prev_var}[0];")
+    cpp.dedent()
+    cpp.add("}")
+    return cpp.render()
 
 def nn_to_cpp(config, model, name="neuralNetwork"):
     n_edge_features = len(config.ingress.edge_features)
@@ -131,7 +282,10 @@ def nn_to_cpp(config, model, name="neuralNetwork"):
     input_size = 2*n_node_features + n_edge_features
 
     cpp = Cpp()
-    cpp.add(f"__global__ float {name}(const float x[{input_size}])")
+    cpp.add("#include <iostream>")
+    cpp.add("#include <math.h>")
+    cpp.newline()
+    cpp.add(f"float {name}(const float x[{input_size}])")
     cpp.add("{")
     cpp.indent()
     cpp.comment([
@@ -223,6 +377,15 @@ def tests_to_cpp(model, loader, n_tests=10, name="neuralNetwork"):
 
     cpp.dedent()
     cpp.add("}")
+
+    cpp.newline()
+    cpp.add("int main()")
+    cpp.add("{")
+    cpp.indent()
+    cpp.add(f"{name}Tests();")
+    cpp.add("return 0;")
+    cpp.dedent()
+    cpp.add("}")
     return cpp.render()
 
 if __name__ == "__main__":
@@ -243,11 +406,6 @@ if __name__ == "__main__":
     model = Model(config).to(device)
     model.load_state_dict(torch.load(saved_model, map_location=device))
 
-    cpp_file = f"{config.basedir}/{config.name}/{config.name}.cu"
-    with open(cpp_file, "w") as f:
-        f.write(nn_to_cpp(config, model))
-        print(f"Wrote {cpp_file}")
-
     test_loader = torch.load(f"{config.basedir}/{config.name}/datasets/{config.name}_test.pt")
     if config.model.name == "DNN":
         from datasets import EdgeDataset, EdgeDataBatch
@@ -259,7 +417,16 @@ if __name__ == "__main__":
         )
 
     model.eval()
-    cpp_file = f"{config.basedir}/{config.name}/{config.name}_tests.cc"
+    cpp_file = f"{config.basedir}/{config.name}/{config.name}.cc"
     with open(cpp_file, "w") as f:
+        f.write(nn_to_cpp(config, model))
+        f.write("\n\n")
         f.write(tests_to_cpp(model, test_loader, n_tests=10))
         print(f"Wrote {cpp_file}")
+
+    cuda_file = f"{config.basedir}/{config.name}/{config.name}.cu"
+    with open(cuda_file, "w") as f:
+        f.write(nn_to_cuda(config, model))
+        # f.write("\n\n")
+        # f.write(tests_to_cpp(model, test_loader, n_tests=10))
+        print(f"Wrote {cuda_file}")
