@@ -173,7 +173,7 @@ class Cpp:
         return "\n".join(self.cpp)
 
 def fmt(num):
-    decimals = 20
+    decimals = 30
     return f"{num:>{decimals+3}.{decimals}f}"
 
 def vector_to_cpp(name, vector, init=True):
