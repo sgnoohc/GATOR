@@ -18,10 +18,6 @@ SUPPORTED_ACTIVATIONS = [
     nn.Sigmoid
 ]
 
-ACTIVATIONFUNC = """
-"""
-ACTIVATIONFUNC = "\n".join(ACTIVATIONFUNC.split("\n")[1:-1])
-
 CUDAMATMULFUNC = """
 enum ActivationFunctions
 {
@@ -39,6 +35,7 @@ __global__ void neuralNetworkLayer(float *A, float *B, float* C, float* bias,
      * where B is the matrix of weights and A is the input vector. This code is stolen from
      * here: https://github.com/charitha22/workspace/blob/master/cuda/mm/naive_matrix_multiply.cu
      */
+
     int row = blockIdx.y*blockDim.y + threadIdx.y;   
     int col = blockIdx.x*blockDim.x + threadIdx.x;
     if (row < C_rows && col < C_cols)
@@ -231,7 +228,7 @@ def nn_to_cuda(config, model, name="neuralNetwork"):
     cpp.add("#include <cuda.h>")
     cpp.add("#include <cuda_runtime.h>")
     cpp.comment("Include associated header file")
-    cpp.add("#include \"T5_NN.cuh\"")
+    cpp.add(f"#include \"{config.name}.cuh\"")
     cpp.newline()
     cpp.add(CUDAMATMULFUNC)
     cpp.newline()
