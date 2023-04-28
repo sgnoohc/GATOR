@@ -18,7 +18,11 @@ SUPPORTED_ACTIVATIONS = [
     nn.Sigmoid
 ]
 
-CUDAMATMULFUNC="""
+ACTIVATIONFUNC = """
+"""
+ACTIVATIONFUNC = "\n".join(ACTIVATIONFUNC.split("\n")[1:-1])
+
+CUDAMATMULFUNC = """
 enum ActivationFunctions
 {
     ReLU,
@@ -26,32 +30,36 @@ enum ActivationFunctions
     None
 };
 
-__global__ void neuralNetworkLayer(float *A, float *B, float* C, float* bias, int width, int C_rows, int C_cols, 
-                                   ActivationFunction activation)
+__global__ void neuralNetworkLayer(float *A, float *B, float* C, float* bias, 
+                                   int A_cols, int C_rows, int C_cols, ActivationFunctions activation)
 {
     /**
-     * Computes the result of a single layer of a neural network:
+     * Computes the result (matrix C) of a single layer of a neural network:
      * C = activation(AB + bias)
-     * where B is the matrix of weights and A is the input vector
+     * where B is the matrix of weights and A is the input vector. This code is stolen from
+     * here: https://github.com/charitha22/workspace/blob/master/cuda/mm/naive_matrix_multiply.cu
      */
     int row = blockIdx.y*blockDim.y + threadIdx.y;   
     int col = blockIdx.x*blockDim.x + threadIdx.x;
     if (row < C_rows && col < C_cols)
     {
         float value = 0.;
-        for(int k = 0; k < width; k++)
+        for (int inner = 0; inner < A_cols; ++inner)
         {
-            value += A[row*width + k]*B[k*C_cols + col];
+            value += A[row*A_cols + inner]*B[inner*C_cols + col];
         }
-        value += bias;
+        value += bias[row*C_cols + col];
         switch (activation)
         {
         case (ReLU):
-            C[row*C_cols + col] = std::max(float(0), value);
+            C[row*C_cols + col] = (value > 0.) ? value : 0.;
+            break;
         case (Sigmoid):
             C[row*C_cols + col] = exp(value)/(exp(value) + 1);
+            break;
         default:
             C[row*C_cols + col] = value;
+            break;
         }
     }
 }
@@ -59,18 +67,21 @@ __global__ void neuralNetworkLayer(float *A, float *B, float* C, float* bias, in
 CUDAMATMULFUNC = "\n".join(CUDAMATMULFUNC.split("\n")[1:-1])
 
 CUDAMATINIT="""
-// Initialize {matrix} and allocate Unified Memory for it (accessible from CPU or GPU)
-int {matrix}_rows, {matrix}_cols = {N}, {M};
+// Initialize {matrix} and allocate device memory for it
+int {matrix}_rows = {N}, {matrix}_cols = {M};
 int {matrix}_size = {matrix}_rows*{matrix}_cols;
-float *{matrix};
-cudaMallocManaged(&{matrix}, {matrix}_size*sizeof(float));
+float* gpu_{matrix};
+cudaMalloc(&gpu_{matrix}, {matrix}_size*sizeof(float));
 """
 CUDAMATINIT = "\n".join(CUDAMATINIT.split("\n")[1:-1])
 
+CUDAMAT2GPU = "cudaMemcpy(gpu_{matrix}, {matrix}, {matrix}_size*sizeof(float), cudaMemcpyHostToDevice);"
+CUDAMAT2HOST = "cudaMemcpy({matrix}, gpu_{matrix}, {matrix}_size*sizeof(float), cudaMemcpyDeviceToHost);"
+
 CUDAMATMUL="""
-dim3 {C}_dim_grid({C}_cols/COL_TILE_WIDTH, {C}_rows/ROW_TILE_WIDTH, 1);
-dim3 {C}_dim_block(COL_TILE_WIDTH, ROW_TILE_WIDTH, 1);
-neuralNetworkLayer<float><<<{C}_dim_grid, {C}_dim_block>>>({A}, {B}, {C}, {bias}, {A}_cols, {C}_rows, {C}_cols, {activation});
+dim3 {C}_block({C}_cols, {C}_rows, 1);
+dim3 {C}_grid(({C}_cols + {C}_block.x - 1)/{C}_block.x, ({C}_rows + {C}_block.y - 1)/{C}_block.y);
+neuralNetworkLayer<<<{C}_grid, {C}_block>>>(gpu_{A}, gpu_{B}, gpu_{C}, gpu_{bias}, {A}_cols, {C}_rows, {C}_cols, {activation});
 // Wait for GPU to finish before accessing on host
 cudaDeviceSynchronize();
 """
@@ -162,14 +173,14 @@ class Cpp:
         return "\n".join(self.cpp)
 
 def fmt(num):
-    decimals = 2
+    decimals = 20
     return f"{num:>{decimals+3}.{decimals}f}"
 
 def vector_to_cpp(name, vector, init=True):
     cpp = Cpp()
     vec = [fmt(val) for val in vector.tolist()]
     if init:
-        cpp.add(f"const float {name}[{len(vec)}] = {{")
+        cpp.add(f"float {name}[{len(vec)}] = {{")
     else:
         cpp.add(f"{name} = {{")
 
@@ -184,7 +195,10 @@ def matrix_to_cpp(name, matrix, flat=False, init=True):
     n_x, n_y = matrix.size()
     cpp = Cpp()
     if init:
-        cpp.add(f"const float {name}[{n_x}][{n_y}] = {{")
+        if flat:
+            cpp.add(f"float {name}[{n_x}*{n_y}] = {{")
+        else:
+            cpp.add(f"float {name}[{n_x}][{n_y}] = {{")
     else:
         cpp.add(f"{name} = {{")
     cpp.indent()
@@ -192,7 +206,10 @@ def matrix_to_cpp(name, matrix, flat=False, init=True):
     for row_i in range(n_x):
         row = [fmt(val) for val in matrix[row_i].tolist()]
         if flat:
-            cpp.add(f"{','.join(row)},")
+            if row_i == n_x - 1:
+                cpp.add(f"{','.join(row)}")
+            else:
+                cpp.add(f"{','.join(row)},")
         else:
             cpp.add(f"{{ {','.join(row)} }},")
 
@@ -205,12 +222,16 @@ def nn_to_cuda(config, model, name="neuralNetwork"):
     n_node_features = len(config.ingress.node_features)
     input_size = 2*n_node_features + n_edge_features
 
+    cpp_header = Cpp()
+    cpp_header.add(f"float {name}(float* x);")
+
     cpp = Cpp()
-    cpp.add("#include <iostream>")
     cpp.add("#include <math.h>")
-    cpp.newline()
-    cpp.add("#define ROW_TILE_WIDTH 32")
-    cpp.add("#define COL_TILE_WIDTH 32")
+    cpp.comment("CUDA libraries")
+    cpp.add("#include <cuda.h>")
+    cpp.add("#include <cuda_runtime.h>")
+    cpp.comment("Include associated header file")
+    cpp.add("#include \"T5_NN.cuh\"")
     cpp.newline()
     cpp.add(CUDAMATMULFUNC)
     cpp.newline()
@@ -228,23 +249,28 @@ def nn_to_cuda(config, model, name="neuralNetwork"):
 
     prev_var = "x"
     N1, M = 1, input_size
-    cpp.comment("Initialize input features and allocate Unified Memory for it (accessible from CPU or GPU)")
-    cpp.add(f"int {prev_var}_rows, {prev_var}_cols = {N1}, {M};")
-    cpp.add(f"int {prev_var}_size = {prev_var}_rows*{prev_var}_cols;")
-    cpp.add(f"cudaMallocManaged(&{prev_var}, {prev_var}_size*sizeof(float));")
+    cpp.add(CUDAMATINIT.format(matrix=prev_var, N=N1, M=M))
+    cpp.add(CUDAMAT2GPU.format(matrix=prev_var))
     cpp.newline()
     for layer_i, layer in enumerate(model.layers):
         if type(layer) == nn.Linear:
             this_var = f"x_{layer_i}"
             bias_var = f"bias_{layer_i}"
             wgts_var = f"wgtT_{layer_i}"
-            M, N2 = layer.weight.T.size()
-            # Initialize matrices
-            cpp.add(CUDAMATINIT.format(matrix=this_var, N=N2, M=1))
-            cpp.add(CUDAMATINIT.format(matrix=bias_var, N=N2, M=1))
-            cpp.add(vector_to_cpp(bias_var, layer.bias, init=False).cpp)
+            N2, M = layer.weight.T.size()
+            # Initialize output vector
+            cpp.add(CUDAMATINIT.format(matrix=this_var, N=N1, M=M))
+            cpp.add(f"float {this_var}[{N1*M}] = {{ 0. }};")
+            cpp.add(CUDAMAT2GPU.format(matrix=this_var))
+            # Initialize bias vector
+            cpp.add(CUDAMATINIT.format(matrix=bias_var, N=N1, M=M))
+            cpp.add(vector_to_cpp(bias_var, layer.bias).cpp)
+            cpp.add(CUDAMAT2GPU.format(matrix=bias_var))
+            # Initialize weights matrix
             cpp.add(CUDAMATINIT.format(matrix=wgts_var, N=N2, M=M))
-            cpp.add(matrix_to_cpp(wgts_var, layer.weight.T, flat=True, init=False).cpp)
+            cpp.add(matrix_to_cpp(wgts_var, layer.weight.T, flat=True).cpp)
+            cpp.add(CUDAMAT2GPU.format(matrix=wgts_var))
+            cpp.newline()
             # Add matmul call
             cpp.comment(f"({layer_i}): {layer} => x = x*W_T + b")
             if type(model.layers[layer_i+1]) in SUPPORTED_ACTIVATIONS:
@@ -258,15 +284,18 @@ def nn_to_cuda(config, model, name="neuralNetwork"):
                 bias=bias_var,
                 activation=activation
             ))
+            # Copy results
+            cpp.comment("Get results")
+            cpp.add(CUDAMAT2HOST.format(matrix=this_var))
             cpp.newline()
             # Free matrices
             cpp.comment("Clean up")
-            cpp.add(f"cudaFree({prev_var});")
-            cpp.add(f"cudaFree({bias_var});")
-            cpp.add(f"cudaFree({wgts_var});")
+            cpp.add(f"cudaFree(gpu_{prev_var});")
+            cpp.add(f"cudaFree(gpu_{bias_var});")
+            cpp.add(f"cudaFree(gpu_{wgts_var});")
             prev_var = this_var
             if layer_i == len(model.layers) - 2:
-                cpp.add(f"cudaFree({prev_var});")
+                cpp.add(f"cudaFree(gpu_{prev_var});")
 
             cpp.newline()
 
@@ -274,7 +303,7 @@ def nn_to_cuda(config, model, name="neuralNetwork"):
     cpp.add(f"return {prev_var}[0];")
     cpp.dedent()
     cpp.add("}")
-    return cpp.render()
+    return cpp_header.render(), cpp.render()
 
 def nn_to_cpp(config, model, name="neuralNetwork"):
     n_edge_features = len(config.ingress.edge_features)
@@ -285,7 +314,7 @@ def nn_to_cpp(config, model, name="neuralNetwork"):
     cpp.add("#include <iostream>")
     cpp.add("#include <math.h>")
     cpp.newline()
-    cpp.add(f"float {name}(const float x[{input_size}])")
+    cpp.add(f"float {name}(float x[{input_size}])")
     cpp.add("{")
     cpp.indent()
     cpp.comment([
@@ -365,6 +394,9 @@ def tests_to_cpp(model, loader, n_tests=10, name="neuralNetwork"):
         if test_i > n_tests:
             break
 
+        data = data.to(device)
+        model = model.to(device)
+
         cpp.comment(f"Test {test_i}")
         feat_var = f"x_{test_i}"
         x = torch.cat((data.x, data.edge_attr), dim=1)
@@ -425,8 +457,11 @@ if __name__ == "__main__":
         print(f"Wrote {cpp_file}")
 
     cuda_file = f"{config.basedir}/{config.name}/{config.name}.cu"
+    cuh, cu = nn_to_cuda(config, model)
     with open(cuda_file, "w") as f:
-        f.write(nn_to_cuda(config, model))
-        # f.write("\n\n")
-        # f.write(tests_to_cpp(model, test_loader, n_tests=10))
+        f.write(cu)
         print(f"Wrote {cuda_file}")
+
+    with open(cuda_file.replace(".cu", ".cuh"), "w") as f:
+        f.write(cuh)
+        print(f"Wrote {cuda_file.replace('.cu', '.cuh')}")
