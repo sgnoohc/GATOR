@@ -6,83 +6,141 @@ from time import time
 
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
 from torch.nn import functional as F
-from tqdm import tqdm
+import uproot
+import awkward as ak
+import pandas as pd
+from sklearn.metrics import roc_curve
 
 import models
 from utils import GatorConfig
 from train import get_model_filename
+from datasets import EdgeDataset, EdgeDataBatch
+
+def trim_leading_newline(multiline_str):
+    return "\n".join(multiline_str.split("\n")[1:-1])
 
 SUPPORTED_ACTIVATIONS = [
     nn.ReLU,
     nn.Sigmoid
 ]
 
-CUDAMATMULFUNC = """
-enum ActivationFunctions
-{
-    ReLU,
-    Sigmoid,
-    None
-};
+NEURALNETWORKWEIGHTS_CUH = """
+#ifndef NeuralNetworkWeights_cuh
+#define NeuralNetworkWeights_cuh
 
-__global__ void neuralNetworkLayer(float *A, float *B, float* C, float* bias, 
-                                   int A_cols, int C_rows, int C_cols, ActivationFunctions activation)
-{
-    /**
-     * Computes the result (matrix C) of a single layer of a neural network:
-     * C = activation(AB + bias)
-     * where B is the matrix of weights and A is the input vector. This code is stolen from
-     * here: https://github.com/charitha22/workspace/blob/master/cuda/mm/naive_matrix_multiply.cu
-     */
+#ifdef __CUDACC__
+#define CUDA_CONST_VAR __device__
+#else
+#define CUDA_CONST_VAR
+#endif
 
-    int row = blockIdx.y*blockDim.y + threadIdx.y;   
-    int col = blockIdx.x*blockDim.x + threadIdx.x;
-    if (row < C_rows && col < C_cols)
-    {
-        float value = 0.;
-        for (int inner = 0; inner < A_cols; ++inner)
-        {
-            value += A[row*A_cols + inner]*B[inner*C_cols + col];
-        }
-        value += bias[row*C_cols + col];
-        switch (activation)
-        {
-        case (ReLU):
-            C[row*C_cols + col] = (value > 0.) ? value : 0.;
-            break;
-        case (Sigmoid):
-            C[row*C_cols + col] = exp(value)/(exp(value) + 1);
-            break;
-        default:
-            C[row*C_cols + col] = value;
-            break;
-        }
-    }
-}
+namespace T5_DNN
+{{
+{matrices}
+}}
+
+#endif
 """
-CUDAMATMULFUNC = "\n".join(CUDAMATMULFUNC.split("\n")[1:-1])
+NEURALNETWORKWEIGHTS_CUH = trim_leading_newline(NEURALNETWORKWEIGHTS_CUH)
 
-CUDAMATINIT="""
-// Initialize {matrix} and allocate device memory for it
-int {matrix}_rows = {N}, {matrix}_cols = {M};
-int {matrix}_size = {matrix}_rows*{matrix}_cols;
-float* gpu_{matrix};
-cudaMalloc(&gpu_{matrix}, {matrix}_size*sizeof(float));
+NEURALNETWORK_CUH = """
+#ifndef NeuralNetwork_cuh
+#define NeuralNetwork_cuh
+
+#ifdef __CUDACC__
+#define CUDA_HOSTDEV  __host__ __device__
+#define CUDA_DEV __device__
+#define CUDA_CONST_VAR __device__
+#else
+#define CUDA_HOSTDEV
+#define CUDA_DEV
+#define CUDA_CONST_VAR
+#endif
+
+#include "Constants.cuh"
+#include "NeuralNetworkWeights.cuh"
+#include "EndcapGeometry.cuh"
+#include "TiltedGeometry.h"
+#include "Segment.cuh"
+#include "MiniDoublet.cuh"
+#include "Module.cuh"
+#include "Hit.cuh"
+#include "PrintUtil.h"
+#include "Triplet.cuh"
+
+namespace T5DNN
+{{
+{working_points}
+
+    CUDA_DEV float runInference(struct SDL::modules& modulesInGPU, struct SDL::miniDoublets& mdsInGPU, 
+                                struct SDL::segments& segmentsInGPU, struct SDL::triplets& tripletsInGPU, 
+                                float* xVec, float* yVec, unsigned int* mdIndices, const uint16_t* lowerModuleIndices, 
+                                unsigned int& innerTripletIndex, unsigned int& outerTripletIndex, 
+                                float& innerRadius, float& outerRadius, float& bridgeRadius);
+}}
+#endif
 """
-CUDAMATINIT = "\n".join(CUDAMATINIT.split("\n")[1:-1])
+NEURALNETWORK_CUH = trim_leading_newline(NEURALNETWORK_CUH)
 
-CUDAMAT2GPU = "cudaMemcpy(gpu_{matrix}, {matrix}, {matrix}_size*sizeof(float), cudaMemcpyHostToDevice);"
-CUDAMAT2HOST = "cudaMemcpy({matrix}, gpu_{matrix}, {matrix}_size*sizeof(float), cudaMemcpyDeviceToHost);"
+NEURALNETWORK_CU = """
+#ifdef __CUDACC__
+#define CUDA_CONST_VAR __device__
+#endif
+#include "NeuralNetwork.cuh"
 
-CUDAMATMUL="""
-dim3 {C}_block({C}_cols, {C}_rows, 1);
-dim3 {C}_grid(({C}_cols + {C}_block.x - 1)/{C}_block.x, ({C}_rows + {C}_block.y - 1)/{C}_block.y);
-neuralNetworkLayer<<<{C}_grid, {C}_block>>>(gpu_{A}, gpu_{B}, gpu_{C}, gpu_{bias}, {A}_cols, {C}_rows, {C}_cols, {activation});
-// Wait for GPU to finish before accessing on host
-cudaDeviceSynchronize();
+__device__ float T5DNN::runInference(struct SDL::modules& modulesInGPU, struct SDL::miniDoublets& mdsInGPU, 
+                                     struct SDL::segments& segmentsInGPU, struct SDL::triplets& tripletsInGPU, 
+                                     float* xVec, float* yVec, unsigned int* mdIndices, const uint16_t* lowerModuleIndices, 
+                                     unsigned int& innerTripletIndex, unsigned int& outerTripletIndex, 
+                                     float& innerRadius, float& outerRadius, float& bridgeRadius)
+{{
+    // Unpack x-coordinates of hits
+    float x1 = xVec[0];
+    float x2 = xVec[1];
+    float x3 = xVec[2];
+    float x4 = xVec[3];
+    float x5 = xVec[4];
+    // Unpack y-coordinates of hits
+    float y1 = yVec[0];
+    float y2 = yVec[1];
+    float y3 = yVec[2];
+    float y4 = yVec[3];
+    float y5 = yVec[4];
+    // Unpack module indices
+    unsigned int mdIndex1 = mdIndices[0];
+    unsigned int mdIndex2 = mdIndices[1];
+    unsigned int mdIndex3 = mdIndices[2];
+    unsigned int mdIndex4 = mdIndices[3];
+    unsigned int mdIndex5 = mdIndices[4];
+    // Unpack module indices
+    uint16_t lowerModuleIndex1 = lowerModuleIndices[0];
+    uint16_t lowerModuleIndex2 = lowerModuleIndices[1];
+    uint16_t lowerModuleIndex3 = lowerModuleIndices[2];
+    uint16_t lowerModuleIndex4 = lowerModuleIndices[3];
+    uint16_t lowerModuleIndex5 = lowerModuleIndices[4];
+
+    // Compute some convenience variables
+    short layer2_adjustment = 0;
+    if (modulesInGPU.layers[lowerModuleIndex1] == 1)
+    {{
+        layer2_adjustment = 1; // get upper segment to be in second layer
+    }}
+    unsigned int md_idx_for_t5_eta_phi = segmentsInGPU.mdIndices[2*tripletsInGPU.segmentIndices[2*innerTripletIndex + layer2_adjustment]];
+    bool is_endcap1 = (modulesInGPU.subdets[lowerModuleIndex1] == 4);                // true if anchor hit 1 is in the endcap
+    bool is_endcap2 = (modulesInGPU.subdets[lowerModuleIndex2] == 4);                // true if anchor hit 2 is in the endcap
+    bool is_endcap3 = (modulesInGPU.subdets[lowerModuleIndex3] == 4);                // true if anchor hit 3 is in the endcap
+    bool is_endcap4 = (modulesInGPU.subdets[lowerModuleIndex4] == 4);                // true if anchor hit 4 is in the endcap
+    bool is_endcap5 = (modulesInGPU.subdets[lowerModuleIndex5] == 4);                // true if anchor hit 5 is in the endcap
+
+{features_cpp}
+
+{neural_network_cpp}
+    return {output_layer}[0];
+}}
 """
-CUDAMATMUL = "\n".join(CUDAMATMUL.split("\n")[1:-1])
+NEURALNETWORK_CU = trim_leading_newline(NEURALNETWORK_CU)
 
 MATMUL = """
 float {result}[{N2}];
@@ -96,16 +154,16 @@ for (unsigned int col = 0; col < {N2}; ++col)
     {result}[col] += {bias}[col];
 }}
 """
-MATMUL = "\n".join(MATMUL.split("\n")[1:-1])
+MATMUL = trim_leading_newline(MATMUL)
 
 RELU = """
 float {new}[{N2}];
 for (unsigned int col = 0; col < {N2}; ++col)
 {{
-    {new}[col] = std::max(float(0), {old}[col]);
+    {new}[col] = ({old}[col] > 0.f) ? {old}[col] : 0.f;
 }}
 """
-RELU = "\n".join(RELU.split("\n")[1:-1])
+RELU = trim_leading_newline(RELU)
 
 SIGMOID = """
 float {new}[{N2}];
@@ -114,7 +172,7 @@ for (unsigned int col = 0; col < {N2}; ++col)
     {new}[col] = exp({old}[col])/(exp({old}[col]) + 1);
 }}
 """
-SIGMOID = "\n".join(SIGMOID.split("\n")[1:-1])
+SIGMOID = trim_leading_newline(SIGMOID)
 
 class Cpp:
     def __init__(self, tab="    "):
@@ -170,8 +228,8 @@ class Cpp:
         return "\n".join(self.cpp)
 
 def fmt(num):
-    decimals = 30
-    return f"{num:>{decimals+3}.{decimals}f}"
+    decimals = 7
+    return f"{num:>{decimals+3}.{decimals}f}f"
 
 def vector_to_cpp(name, vector, init=True):
     cpp = Cpp()
@@ -214,208 +272,68 @@ def matrix_to_cpp(name, matrix, flat=False, init=True):
     cpp.add("};")
     return cpp
 
-def nn_to_cuda(config, model, name="neuralNetwork"):
+def nn_to_cpp(config, model, namespace="T5DNN"):
     n_edge_features = len(config.ingress.edge_features)
     n_node_features = len(config.ingress.node_features)
     input_size = 2*n_node_features + n_edge_features
 
-    cpp_header = Cpp()
-    cpp_header.add(f"float {name}(float* x);")
+    matmul_cpp = Cpp()
+    matrix_cpp = Cpp()
+    matmul_cpp.indent()
+    matrix_cpp.indent()
 
-    cpp = Cpp()
-    cpp.add("#include <math.h>")
-    cpp.comment("CUDA libraries")
-    cpp.add("#include <cuda.h>")
-    cpp.add("#include <cuda_runtime.h>")
-    cpp.comment("Include associated header file")
-    cpp.add(f"#include \"{config.name}.cuh\"")
-    cpp.newline()
-    cpp.add(CUDAMATMULFUNC)
-    cpp.newline()
-    cpp.add(f"float {name}(float* x)")
-    cpp.add("{")
-    cpp.indent()
-    cpp.comment([
-        f"Auto-generated from the following PyTorch (v{torch.__version__}) model:",
-        f"{model}",
-        "",
-        "Implements the calculation of the discriminant for a simple neural network",
-        "with some CUDA acceleration"
-    ])
-    cpp.newline()
-
-    prev_var = "x"
-    N1, M = 1, input_size
-    cpp.add(CUDAMATINIT.format(matrix=prev_var, N=N1, M=M))
-    cpp.add(CUDAMAT2GPU.format(matrix=prev_var))
-    cpp.newline()
-    for layer_i, layer in enumerate(model.layers):
-        if type(layer) == nn.Linear:
-            this_var = f"x_{layer_i}"
-            bias_var = f"bias_{layer_i}"
-            wgts_var = f"wgtT_{layer_i}"
-            N2, M = layer.weight.T.size()
-            # Initialize output vector
-            cpp.add(CUDAMATINIT.format(matrix=this_var, N=N1, M=M))
-            cpp.add(f"float {this_var}[{N1*M}] = {{ 0. }};")
-            cpp.add(CUDAMAT2GPU.format(matrix=this_var))
-            # Initialize bias vector
-            cpp.add(CUDAMATINIT.format(matrix=bias_var, N=N1, M=M))
-            cpp.add(vector_to_cpp(bias_var, layer.bias).cpp)
-            cpp.add(CUDAMAT2GPU.format(matrix=bias_var))
-            # Initialize weights matrix
-            cpp.add(CUDAMATINIT.format(matrix=wgts_var, N=N2, M=M))
-            cpp.add(matrix_to_cpp(wgts_var, layer.weight.T, flat=True).cpp)
-            cpp.add(CUDAMAT2GPU.format(matrix=wgts_var))
-            cpp.newline()
-            # Add matmul call
-            cpp.comment(f"({layer_i}): {layer} => x = x*W_T + b")
-            if type(model.layers[layer_i+1]) in SUPPORTED_ACTIVATIONS:
-                activation = model.layers[layer_i+1].__str__()[:-2]
-            else:
-                activation = "None"
-            cpp.add(CUDAMATMUL.format(
-                A=prev_var,
-                B=wgts_var,
-                C=this_var,
-                bias=bias_var,
-                activation=activation
-            ))
-            # Copy results
-            cpp.comment("Get results")
-            cpp.add(CUDAMAT2HOST.format(matrix=this_var))
-            cpp.newline()
-            # Free matrices
-            cpp.comment("Clean up")
-            cpp.add(f"cudaFree(gpu_{prev_var});")
-            cpp.add(f"cudaFree(gpu_{bias_var});")
-            cpp.add(f"cudaFree(gpu_{wgts_var});")
-            prev_var = this_var
-            if layer_i == len(model.layers) - 2:
-                cpp.add(f"cudaFree(gpu_{prev_var});")
-
-            cpp.newline()
-
-
-    cpp.add(f"return {prev_var}[0];")
-    cpp.dedent()
-    cpp.add("}")
-    return cpp_header.render(), cpp.render()
-
-def nn_to_cpp(config, model, name="neuralNetwork"):
-    n_edge_features = len(config.ingress.edge_features)
-    n_node_features = len(config.ingress.node_features)
-    input_size = 2*n_node_features + n_edge_features
-
-    cpp = Cpp()
-    cpp.add("#include <iostream>")
-    cpp.add("#include <math.h>")
-    cpp.newline()
-    cpp.add(f"float {name}(float x[{input_size}])")
-    cpp.add("{")
-    cpp.indent()
-    cpp.comment([
-        f"Auto-generated from the following PyTorch (v{torch.__version__}) model:",
-        f"{model}",
-        "",
-        "Implements the calculation of the discriminant for a simple neural network"
-    ])
-    cpp.newline()
-
-    prev_var = "x"
+    prev_arr = "x"
     N1, M = 1, input_size
     for layer_i, layer in enumerate(model.layers):
         if type(layer) == nn.Linear:
             # x = torch.matmul(x, layer.weight.T) + layer.bias
-            cpp.comment(f"({layer_i}): {layer} => x = x*W_T + b")
-            this_var = f"x_{layer_i}"
-            bias_var = f"bias_{layer_i}"
-            cpp.add(vector_to_cpp(bias_var, layer.bias).cpp)
-            wgts_var = f"wgtT_{layer_i}"
-            cpp.add(matrix_to_cpp(wgts_var, layer.weight.T).cpp)
+            matmul_cpp.comment(f"({layer_i}): {layer} => x = x*W_T + b")
+            this_arr = f"x_{layer_i}"
+            bias_arr = f"bias_{layer_i}"
+            matrix_cpp.add(vector_to_cpp(bias_arr, layer.bias).cpp)
+            wgts_arr = f"wgtT_{layer_i}"
+            matrix_cpp.add(matrix_to_cpp(wgts_arr, layer.weight.T).cpp)
             M, N2 = layer.weight.T.size()
 
-            cpp.add(MATMUL.format(
-                result=this_var,
-                matrix1=prev_var,
-                matrix2=wgts_var,
-                bias=bias_var,
+            # add namespace
+            bias_arr = f"{namespace}::{bias_arr}"
+            wgts_arr = f"{namespace}::{wgts_arr}"
+
+            matmul_cpp.add(MATMUL.format(
+                result=this_arr,
+                matrix1=prev_arr,
+                matrix2=wgts_arr,
+                bias=bias_arr,
                 N1=N1,
                 N2=N2,
                 M=M
             ))
-            prev_var = this_var
-            cpp.newline()
+            prev_arr = this_arr
+            matmul_cpp.newline()
         elif type(layer) == nn.Sigmoid:
-            cpp.comment(f"({layer_i}): {layer}")
-            this_var = f"x_{layer_i}"
-            cpp.add(SIGMOID.format(
-                new=this_var,
-                old=prev_var,
+            matmul_cpp.comment(f"({layer_i}): {layer}")
+            this_arr = f"x_{layer_i}"
+            matmul_cpp.add(SIGMOID.format(
+                new=this_arr,
+                old=prev_arr,
                 N1=N1,
                 N2=N2
             ))
-            prev_var = this_var
-            cpp.newline()
+            prev_arr = this_arr
+            matmul_cpp.newline()
         elif type(layer) == nn.ReLU:
-            cpp.comment(f"({layer_i}): {layer}")
-            this_var = f"x_{layer_i}"
-            cpp.add(RELU.format(
-                new=this_var,
-                old=prev_var,
+            matmul_cpp.comment(f"({layer_i}): {layer}")
+            this_arr = f"x_{layer_i}"
+            matmul_cpp.add(RELU.format(
+                new=this_arr,
+                old=prev_arr,
                 N1=N1,
                 N2=N2
             ))
-            prev_var = this_var
-            cpp.newline()
+            prev_arr = this_arr
+            matmul_cpp.newline()
 
-    cpp.add(f"return {prev_var}[0];")
-    cpp.dedent()
-    cpp.add("}")
-    return cpp.render()
-
-def tests_to_cpp(model, loader, n_tests=10, name="neuralNetwork"):
-    cpp = Cpp()
-    cpp.add(f"void {name}Tests()")
-    cpp.add("{")
-    cpp.indent()
-    cpp.comment([
-        f"Auto-generated from the following PyTorch (v{torch.__version__}) model:",
-        f"{model}",
-        "",
-        "Implements several tests for a simple neural network"
-    ])
-    cpp.newline()
-
-    for test_i, data in enumerate(test_loader):
-        if test_i > n_tests:
-            break
-
-        data = data.to(device)
-        model = model.to(device)
-
-        cpp.comment(f"Test {test_i}")
-        feat_var = f"x_{test_i}"
-        x = torch.cat((data.x, data.edge_attr), dim=1)
-        cpp.add(vector_to_cpp(feat_var, x[0]).cpp)
-
-        output = model(data.x, data.edge_index, data.edge_attr)
-        
-        cpp.add(f"std::cout << \"Test {test_i}: \" << {name}({feat_var}) << \" (obtained) \" << {output.item()} << \" (actual)\" << std::endl;")
-        cpp.newline()
-
-    cpp.dedent()
-    cpp.add("}")
-
-    cpp.newline()
-    cpp.add("int main()")
-    cpp.add("{")
-    cpp.indent()
-    cpp.add(f"{name}Tests();")
-    cpp.add("return 0;")
-    cpp.dedent()
-    cpp.add("}")
-    return cpp.render()
+    return matmul_cpp, matrix_cpp, prev_arr
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Export DNN as matrix multiplication")
@@ -434,31 +352,79 @@ if __name__ == "__main__":
     Model = getattr(models, config.model.name)
     model = Model(config).to(device)
     model.load_state_dict(torch.load(saved_model, map_location=device))
-
-    test_loader = torch.load(f"{config.basedir}/{config.name}/datasets/{config.name}_test.pt")
-    if config.model.name == "DNN":
-        from datasets import EdgeDataset, EdgeDataBatch
-        from torch.utils.data import DataLoader
-        # Hacky PyG graph-level GNN inputs --> edge-level DNN inputs
-        test_loader = DataLoader(
-            EdgeDataset(test_loader), batch_size=1, shuffle=True,
-            collate_fn=lambda batch: EdgeDataBatch(batch)
-        )
-
     model.eval()
-    cpp_file = f"{config.basedir}/{config.name}/{config.name}.cc"
-    with open(cpp_file, "w") as f:
-        f.write(nn_to_cpp(config, model))
-        f.write("\n\n")
-        f.write(tests_to_cpp(model, test_loader, n_tests=10))
-        print(f"Wrote {cpp_file}")
 
-    cuda_file = f"{config.basedir}/{config.name}/{config.name}.cu"
-    cuh, cu = nn_to_cuda(config, model)
-    with open(cuda_file, "w") as f:
+    # Generate matrix multiplcation/declaration C++ code
+    matmul_cpp, matrix_cpp, output_layer = nn_to_cpp(config, model)
+
+    # Write features vector template
+    features_cpp = Cpp()
+    features_cpp.indent()
+    n_features = 2*len(config.ingress.node_features) + len(config.ingress.edge_features)
+    features_cpp.comment("Build DNN input vector (corresponding output N-tuple branch noted in parenthetical in comment)")
+    features_cpp.add(f"float x[{n_features}] = {{")
+    features_cpp.indent()
+    for node in ["inner", "outer"]:
+        for feature in config.ingress.node_features:
+            features_cpp.add(f"-1.f, // FIXME: {node} {feature} ({config.ingress.transforms.get(feature, 'no')} transf)")
+    for feature in config.ingress.edge_features:
+        features_cpp.add(f"-1.f, // FIXME: {feature} ({config.ingress.transforms.get(feature, 'no')} transf)")
+    features_cpp.dedent()
+    features_cpp.add("};")
+
+    # Get ingredients for LST FPR and TPR
+    with uproot.open("/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTGnnNtuple.root") as f:
+        is_fake = ak.values_astype(f["tree"]["t5_isFake"].array(), "bool")
+        lst_FP = ak.sum(is_fake)                # number of false positives (fake T5s produced by LST)
+        lst_TP = ak.sum(~is_fake)               # number of true positives (real T5s produced by LST)
+    with uproot.open(config.ingress.input_file) as f:
+        is_fake = ak.values_astype(f["tree"]["t5_isFake"].array(), "bool")
+        lst_N = ak.sum(is_fake)                 # total number of fakes
+        lst_P = ak.sum(~is_fake)                # total number of trues
+
+    lst_fpr = lst_FP/lst_N
+    lst_tpr = lst_TP/lst_P
+
+    # Get DNN ROC curve
+    test_df = pd.read_csv(saved_model.replace("models", "inferences").replace("_model.pt", "_test.csv"))
+    fpr, tpr, thresh = roc_curve(test_df.truth, test_df.score)
+
+
+    # Write some working points
+    wps_cpp = Cpp()
+    wps_cpp.indent()
+    wps_cpp.comment(f"Working points matching LST fake rate ({lst_fpr*100:.1f}%) or signal acceptance ({lst_tpr*100:.1f}%)")
+    wps_cpp.add(f"CUDA_CONST_VAR const float LSTWP1 = {thresh[fpr >= lst_fpr][0]:.7f}f; // {tpr[fpr >= lst_fpr][0]*100:>4.1f}% TPR, {lst_fpr*100:>4.1f}% FPR")
+    wps_cpp.add(f"CUDA_CONST_VAR const float LSTWP2 = {thresh[tpr >= lst_tpr][0]:.7f}f; // {lst_tpr*100:>4.1f}% TPR, {fpr[tpr >= lst_tpr][0]*100:>4.1f}% FPR")
+    wps_cpp.comment("Other working points")
+    wps_cpp.add(f"CUDA_CONST_VAR const float WP95   = {thresh[tpr >= 0.950][0]:.7f}f; // 95.0% TPR, {fpr[tpr >= 0.950][0]*100:>4.1f}% FPR")
+    wps_cpp.add(f"CUDA_CONST_VAR const float WP97p5 = {thresh[tpr >= 0.975][0]:.7f}f; // 97.5% TPR, {fpr[tpr >= 0.975][0]*100:>4.1f}% FPR")
+    wps_cpp.add(f"CUDA_CONST_VAR const float WP99   = {thresh[tpr >= 0.990][0]:.7f}f; // 99.0% TPR, {fpr[tpr >= 0.990][0]*100:>4.1f}% FPR")
+    wps_cpp.add(f"CUDA_CONST_VAR const float WP99p9 = {thresh[tpr >= 0.999][0]:.7f}f; // 99.9% TPR, {fpr[tpr >= 0.999][0]*100:>4.1f}% FPR")
+
+    cu_file = f"{config.basedir}/{config.name}/NeuralNetwork.cu"
+    with open(cu_file, "w") as f:
+        cu = NEURALNETWORK_CU.format(
+            features_cpp=features_cpp.render(),
+            neural_network_cpp=matmul_cpp.render(),
+            output_layer=output_layer
+        )
         f.write(cu)
-        print(f"Wrote {cuda_file}")
+        print(f"Wrote {cu_file}")
 
-    with open(cuda_file.replace(".cu", ".cuh"), "w") as f:
+    cuh_file = f"{config.basedir}/{config.name}/NeuralNetwork.cuh"
+    with open(cuh_file, "w") as f:
+        cuh = NEURALNETWORK_CUH.format(
+            working_points=wps_cpp.render()
+        )
         f.write(cuh)
-        print(f"Wrote {cuda_file.replace('.cu', '.cuh')}")
+        print(f"Wrote {cuh_file}")
+
+    cuh_file = f"{config.basedir}/{config.name}/NeuralNetworkWeights.cuh"
+    with open(cuh_file, "w") as f:
+        cuh = NEURALNETWORKWEIGHTS_CUH.format(
+            matrices=matrix_cpp.render()
+        )
+        cuh = cuh.replace("float", "CUDA_CONST_VAR const float")
+        f.write(cuh)
+        print(f"Wrote {cuh_file}")
