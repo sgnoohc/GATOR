@@ -16,6 +16,10 @@ Following command requests one A100 GPU node.
 
     srun --partition=gpu --gpus=1 --mem=16gb --constraint=a100 --pty bash -i
 
+Or, if you are just testing the code, use an interactive job on a CPU node instead:
+
+    srun --ntasks=1 --cpus-per-task=1 --mem=2gb -t 90 --pty bash -i
+
 Within the node:
 
     cd GATOR/gnn
@@ -27,6 +31,15 @@ Within the node:
     ./writetree
 
 This creates the `output.root` that contains the MD and LS with `LS_score` branch
+
+The training and inference can also be run via batch jobs:
+
+    sbatch batch/train.script configs/LS.json
+
+While the job is running, you can get the job ID from the output of `squeue -u $USER`. 
+With this ID, you can find get metrics for your job, e.g. the GPU usage via `nvida-smi` for job `123456`:
+    
+    srun --jobid=123456 nvidia-smi
 
 ### Input
 

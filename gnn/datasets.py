@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 
-class EdgeDataBatch():
+class EdgeDataBatch:
     def __init__(self, batch):
         data = list(zip(*batch))
         self.x = torch.stack(data[0])

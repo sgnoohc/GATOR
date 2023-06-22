@@ -5,16 +5,15 @@ import argparse
 from time import time
 
 import torch
-from tqdm import tqdm
 
 import models
-from utils import GatorConfig
+from utils import GatorConfig, SimpleProgress
 from train import get_model_filename
 
 def infer(model, device, loader, output_csv):
     csv_rows = ["idx,truth,score"]
     times = []
-    for event_i, data in enumerate(tqdm(loader)):
+    for event_i, data in enumerate(SimpleProgress(loader)):
         data = data.to(device)
         model = model.to(device)
 
@@ -43,32 +42,33 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config = GatorConfig.from_json(args.config_json)
-    os.makedirs(f"{config.basedir}/inference", exist_ok=True)
+    os.makedirs(f"{config.basedir}/{config.name}/inferences", exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    saved_model = f"{config.basedir}/trained_models/{get_model_filename(config, args.epoch)}"
+    saved_model = f"{config.basedir}/{config.name}/models/{get_model_filename(config, args.epoch)}"
     Model = getattr(models, config.model.name)
     model = Model(config)
-    model.load_state_dict(torch.load(saved_model))
+    model.load_state_dict(torch.load(saved_model, map_location=device))
     model.eval()
 
-    test_loader = torch.load(f"{config.basedir}/{config.name}_test.pt")
-    train_loader = torch.load(f"{config.basedir}/{config.name}_train.pt")
+    test_loader = torch.load(f"{config.basedir}/{config.name}/datasets/{config.name}_test.pt")
+    train_loader = torch.load(f"{config.basedir}/{config.name}/datasets/{config.name}_train.pt")
     
-    if config.model.name == "DNN":
+    if "DNN" in config.model.name:
         from datasets import EdgeDataset, EdgeDataBatch
         from torch.utils.data import DataLoader
         # Hacky PyG graph-level GNN inputs --> edge-level DNN inputs
         train_loader = DataLoader(EdgeDataset(train_loader), collate_fn=lambda batch: EdgeDataBatch(batch))
         test_loader = DataLoader(EdgeDataset(test_loader), collate_fn=lambda batch: EdgeDataBatch(batch))
 
-    times = infer(
+    times = []
+    times += infer(
         model, device, test_loader, 
-        saved_model.replace("trained_models", "inference").replace("_model.pt", "_test.csv")
+        saved_model.replace("models", "inferences").replace("_model.pt", "_test.csv")
     )
     times += infer(
         model, device, train_loader, 
-        saved_model.replace("trained_models", "inference").replace("_model.pt", "_train.csv")
+        saved_model.replace("models", "inferences").replace("_model.pt", "_train.csv")
     )
     print(f"Avg. inference time: {sum(times)/len(times)}s")

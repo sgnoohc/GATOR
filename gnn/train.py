@@ -19,7 +19,7 @@ def get_model_filename(config, epoch):
         + f"_nhidden{config.model.n_hidden_layers}"
         + f"_hiddensize{config.model.hidden_size}"
         + f"_epoch{epoch}"
-        + f"_lr{config.train.learning_rate}"
+        + f"_lr{config.train.scheduler_name}{config.train.learning_rate}"
         + f"_0.8GeV_model.pt"
     )
 
@@ -68,8 +68,8 @@ def train(args, model, device, train_loader, optimizer, epoch):
 
         losses.append(loss.item())
 
-    print(f"runtime: {time() - epoch_t0}s", flush=True)
-    print(f"train loss: {np.mean(losses):0.6f}", flush=True)
+    print(f"train runtime: {time() - epoch_t0}s", flush=True)
+    print(f"train loss:    {np.mean(losses):0.6f}", flush=True)
     return np.mean(losses)
 
 def validate(model, device, val_loader):
@@ -98,7 +98,7 @@ def validate(model, device, val_loader):
         opt_thresholds.append(opt_thresh)
         accs.append(opt_acc)
 
-    print(f"val accuracy: {np.mean(accs):0.6f}", flush=True)
+    print(f"val accuracy:  {np.mean(accs):0.6f}", flush=True)
     return np.mean(opt_thresholds)
 
 def test(model, device, test_loader, thresh=0.5):
@@ -117,7 +117,7 @@ def test(model, device, test_loader, thresh=0.5):
             accs.append(acc)
             losses.append(loss)
 
-    print(f"test loss: {np.mean(losses):0.6f}", flush=True)
+    print(f"test loss:     {np.mean(losses):0.6f}", flush=True)
     print(f"test accuracy: {np.mean(accs):0.6f}", flush=True)
     return np.mean(losses), np.mean(accs)
 
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config = GatorConfig.from_json(args.config_json)
-    os.makedirs(f"{config.basedir}/trained_models", exist_ok=True)
+    os.makedirs(f"{config.basedir}/{config.name}/models", exist_ok=True)
 
     print_title("Configuration")
     print(config)
@@ -157,11 +157,11 @@ if __name__ == "__main__":
     device = torch.device("cuda" if use_cuda else "cpu")
     print(f"use_cuda: {use_cuda}")
 
-    train_loader = torch.load(f"{config.basedir}/{config.name}_train.pt")
-    test_loader  = torch.load(f"{config.basedir}/{config.name}_test.pt")
-    val_loader   = torch.load(f"{config.basedir}/{config.name}_val.pt")
+    train_loader = torch.load(f"{config.basedir}/{config.name}/datasets/{config.name}_train.pt")
+    test_loader  = torch.load(f"{config.basedir}/{config.name}/datasets/{config.name}_test.pt")
+    val_loader   = torch.load(f"{config.basedir}/{config.name}/datasets/{config.name}_val.pt")
 
-    if config.model.name == "DNN":
+    if "DNN" in config.model.name:
         from datasets import EdgeDataset, EdgeDataBatch
         from torch.utils.data import DataLoader
         # Hacky PyG graph-level GNN inputs --> edge-level DNN inputs
@@ -192,27 +192,28 @@ if __name__ == "__main__":
     Scheduler = getattr(lr_schedulers, config.train.scheduler_name)
     scheduler = Scheduler(optimizer, **config.train.scheduler_kwargs)
 
-    output = {"train_loss": [], "test_loss": [], "test_acc": []}
+    history = {"train_loss": [], "test_loss": [], "test_acc": []}
+    history_json = f"{config.basedir}/{config.name}/{config.name}_history.json"
     for epoch in range(1, args.n_epochs + 1):
+        epoch_t0 = time()
         print_title(f"Epoch {epoch}")
         train_loss = train(args, model, device, train_loader, optimizer, epoch)
         thresh = validate(model, device, val_loader)
-        print(f"optimal threshold: {thresh}", flush=True)
+        print(f"best thresh:   {thresh}", flush=True)
         test_loss, test_acc = test(model, device, test_loader, thresh=thresh)
         scheduler.step()
 
+        print(f"total runtime: {time() - epoch_t0:0.3f}s", flush=True)
+
         if not args.dry_run and epoch % 5 == 0:
-            outname = f"{config.basedir}/trained_models/{get_model_filename(config, epoch)}"
+            outname = f"{config.basedir}/{config.name}/models/{get_model_filename(config, epoch)}"
             torch.save(model.state_dict(), outname)
             print(f"Wrote {outname}")
 
-        output["train_loss"].append(train_loss)
-        output["test_loss"].append(test_loss)
-        output["test_acc"].append(test_acc)
-
-    history_json = f"{config.basedir}/trained_models/{config.name}_history.json"
-    with open(history_json, "w") as f_out:
-        json.dump(output, f_out)
-    print(f"Wrote {history_json}")
-
-    print(output)
+        history["train_loss"].append(train_loss)
+        history["test_loss"].append(test_loss)
+        history["test_acc"].append(test_acc)
+        if epoch % 100 == 0 or epoch == args.n_epochs:
+            with open(history_json, "w") as f:
+                json.dump(history, f)
+                print(f"Wrote {history_json}")

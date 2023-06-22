@@ -23,6 +23,7 @@ def trim_leading_newline(multiline_str):
 
 SUPPORTED_ACTIVATIONS = [
     nn.ReLU,
+    nn.LeakyReLU,
     nn.Sigmoid
 ]
 
@@ -36,7 +37,7 @@ NEURALNETWORKWEIGHTS_CUH = """
 #define CUDA_CONST_VAR
 #endif
 
-namespace T5_DNN
+namespace T5DNN
 {{
 {matrices}
 }}
@@ -164,6 +165,15 @@ for (unsigned int col = 0; col < {N2}; ++col)
 }}
 """
 RELU = trim_leading_newline(RELU)
+
+LEAKYRELU = """
+float {new}[{N2}];
+for (unsigned int col = 0; col < {N2}; ++col)
+{{
+    {new}[col] = ({old}[col] > 0.f) ? {old}[col] : {slope}f*{old}[col];
+}}
+"""
+LEAKYRELU = trim_leading_newline(LEAKYRELU)
 
 SIGMOID = """
 float {new}[{N2}];
@@ -310,28 +320,45 @@ def nn_to_cpp(config, model, namespace="T5DNN"):
             ))
             prev_arr = this_arr
             matmul_cpp.newline()
-        elif type(layer) == nn.Sigmoid:
-            matmul_cpp.comment(f"({layer_i}): {layer}")
-            this_arr = f"x_{layer_i}"
-            matmul_cpp.add(SIGMOID.format(
-                new=this_arr,
-                old=prev_arr,
-                N1=N1,
-                N2=N2
-            ))
-            prev_arr = this_arr
-            matmul_cpp.newline()
-        elif type(layer) == nn.ReLU:
-            matmul_cpp.comment(f"({layer_i}): {layer}")
-            this_arr = f"x_{layer_i}"
-            matmul_cpp.add(RELU.format(
-                new=this_arr,
-                old=prev_arr,
-                N1=N1,
-                N2=N2
-            ))
-            prev_arr = this_arr
-            matmul_cpp.newline()
+        elif type(layer) in SUPPORTED_ACTIVATIONS:
+            if type(layer) == nn.Sigmoid:
+                matmul_cpp.comment(f"({layer_i}): {layer}")
+                this_arr = f"x_{layer_i}"
+                matmul_cpp.add(SIGMOID.format(
+                    new=this_arr,
+                    old=prev_arr,
+                    N1=N1,
+                    N2=N2
+                ))
+                prev_arr = this_arr
+                matmul_cpp.newline()
+            elif type(layer) == nn.ReLU:
+                matmul_cpp.comment(f"({layer_i}): {layer}")
+                this_arr = f"x_{layer_i}"
+                matmul_cpp.add(RELU.format(
+                    new=this_arr,
+                    old=prev_arr,
+                    N1=N1,
+                    N2=N2
+                ))
+                prev_arr = this_arr
+                matmul_cpp.newline()
+            elif type(layer) == nn.LeakyReLU:
+                matmul_cpp.comment(f"({layer_i}): {layer}")
+                this_arr = f"x_{layer_i}"
+                matmul_cpp.add(LEAKYRELU.format(
+                    new=this_arr,
+                    old=prev_arr,
+                    N1=N1,
+                    N2=N2,
+                    slope=0.01
+                ))
+                prev_arr = this_arr
+                matmul_cpp.newline()
+        else:
+            raise Exception(
+                f"{layer} is not a Linear layer, nor is it in the list of supported activations"
+            )
 
     return matmul_cpp, matrix_cpp, prev_arr
 
