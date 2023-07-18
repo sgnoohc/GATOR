@@ -1,3 +1,4 @@
+import os
 import json
 from types import SimpleNamespace
 
@@ -10,6 +11,10 @@ class GatorConfig(SimpleNamespace):
             d.update(extra)
             return json.loads(json.dumps(d), object_hook=lambda d: cls(**d))
 
+    def write(self, outfile):
+        with open(outfile, "w") as f:
+            json.dump(self.__recursive_get_json(self.__dict__), f, indent=4)
+
     def get(self, key, default=None):
         return self.__dict__.get(key, default)
 
@@ -19,27 +24,46 @@ class GatorConfig(SimpleNamespace):
     def items(self):
         return self.__dict__.items()
 
-    def __get_json(self, d):
+    def __recursive_get_json(self, d):
         json = {}
         for key, val in d.items():
             if type(val) == type(self):
-                json[key] = self.__get_json(val)
+                json[key] = self.__recursive_get_json(val)
             else:
                 json[key] = val
         return json
 
     def __str__(self):
-        return json.dumps(self.__get_json(self.__dict__), indent=4)
+        return json.dumps(self.__recursive_get_json(self.__dict__), indent=4)
 
     def __getitem__(self, key):
         return self.get(key)
 
-    def __setitem__(self, key, value):
-        self.__dict__[key] = value
+    def get_outfile(self, subdir=None, ext="pt", tag=None, epoch=None, quiet=True, short=False):
+        outdir = f"{self.base_dir}/{self.name}"
+        if subdir:
+            outdir = f"{outdir}/{subdir}"
+        os.makedirs(outdir, exist_ok=True)
 
-def print_title(text):
-    text = f" {text} "
-    print(f"{text:-^50}", flush=True)
+        outfile = f"{outdir}/{self.name}"
+        if not short:
+            outfile += (
+                f"_model{self.model.name}"
+                + f"_nhidden{self.model.n_hidden_layers}"
+                + f"_hiddensize{self.model.hidden_size}"
+                + f"_lr{self.train.scheduler_name}{self.train.learning_rate}"
+            )
+        if not epoch is None:
+            outfile += f"_epoch{epoch}"
+        if not tag is None:
+            outfile += f"_{tag}"
+
+        outfile += f".{ext}"
+
+        if not quiet:
+            print(outfile)
+
+        return outfile
 
 class SimpleProgress:
     def __init__(self, iterable, n_checkpoints=10):
@@ -64,3 +88,7 @@ class SimpleProgress:
         self.check += 1
 
         return item
+
+def print_title(text):
+    text = f" {text} "
+    print(f"{text:-^50}", flush=True)

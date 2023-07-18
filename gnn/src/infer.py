@@ -1,5 +1,4 @@
 #!/bin/env python
-
 import os
 import argparse
 from time import time
@@ -8,14 +7,12 @@ import torch
 
 import models
 from utils import GatorConfig, SimpleProgress
-from train import get_model_filename
 
 def infer(model, device, loader, output_csv):
     csv_rows = ["idx,truth,score"]
     times = []
     for event_i, data in enumerate(SimpleProgress(loader)):
         data = data.to(device)
-        model = model.to(device)
 
         start = time()
         output = model(data.x, data.edge_index, data.edge_attr)
@@ -42,18 +39,20 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config = GatorConfig.from_json(args.config_json)
-    os.makedirs(f"{config.basedir}/{config.name}/inferences", exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    saved_model = f"{config.basedir}/{config.name}/models/{get_model_filename(config, args.epoch)}"
+    # Load model
     Model = getattr(models, config.model.name)
     model = Model(config)
+    saved_model = config.get_outfile(subdir="models", epoch=args.epoch)
     model.load_state_dict(torch.load(saved_model, map_location=device))
     model.eval()
+    model = model.to(device)
 
-    test_loader = torch.load(f"{config.basedir}/{config.name}/datasets/{config.name}_test.pt")
-    train_loader = torch.load(f"{config.basedir}/{config.name}/datasets/{config.name}_train.pt")
+    # Load test/train samples
+    train_loader = torch.load(config.get_outfile(subdir="datasets", tag="train", short=True))
+    test_loader = torch.load(config.get_outfile(subdir="datasets", tag="test", short=True))
     
     if "DNN" in config.model.name:
         from datasets import EdgeDataset, EdgeDataBatch
@@ -64,11 +63,11 @@ if __name__ == "__main__":
 
     times = []
     times += infer(
-        model, device, test_loader, 
-        saved_model.replace("models", "inferences").replace("_model.pt", "_test.csv")
+        model, device, train_loader, 
+        config.get_outfile(subdir="inferences", tag="train", ext="csv")
     )
     times += infer(
-        model, device, train_loader, 
-        saved_model.replace("models", "inferences").replace("_model.pt", "_train.csv")
+        model, device, test_loader, 
+        config.get_outfile(subdir="inferences", tag="test", ext="csv")
     )
     print(f"Avg. inference time: {sum(times)/len(times)}s")

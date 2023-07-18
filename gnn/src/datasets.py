@@ -30,6 +30,9 @@ class EdgeData:
 
 class EdgeDataset(Dataset):
     def __init__(self, pyg_data):
+        if not pyg_data:
+            raise Exception("No list of graphs provided (or list is empty)")
+
         self.data = pyg_data
         idx_ranges = []
         for graph_i in range(len(self.data)):

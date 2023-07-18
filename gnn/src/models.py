@@ -172,7 +172,6 @@ class ChangNet(InteractionNetwork):
 
         # Edge classification model (Latent Node, Message, Latent Node) -> (1 dim edge score)
         edge_classifier = RelationalModel(
-            # 2*n_lnode_features + n_msg_features,
             2*n_lnode_features + n_edge_features,
             1,
             n_hidden_layers,
