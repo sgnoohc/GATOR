@@ -5,8 +5,6 @@ from types import SimpleNamespace
 class GatorConfig(SimpleNamespace):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.get("name", None) is None:
-            self.name = "GatorConfig"
 
     @classmethod
     def from_dict(cls, config_dict, extra={}):
