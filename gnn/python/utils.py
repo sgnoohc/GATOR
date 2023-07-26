@@ -10,8 +10,8 @@ class GatorConfig(SimpleNamespace):
 
     @classmethod
     def from_dict(cls, config_dict, extra={}):
-        config_dict.update(extra)
-        return cls(**config_dict)
+        config_dict = GatorConfig.__deep_update(config_dict, extra)
+        return json.loads(json.dumps(config_dict), object_hook=lambda d: cls(**d))
 
     @classmethod
     def from_json(cls, config_json, extra={}):
@@ -38,6 +38,15 @@ class GatorConfig(SimpleNamespace):
 
     def items(self):
         return self.__dict__.items()
+
+    @staticmethod
+    def __deep_update(d1, d2):
+        for k, v in d2.items():
+            if type(v) == dict:
+                d1[k] = GatorConfig.__deep_update(d1.get(k, {}), v)
+            else:
+                d1[k] = v
+        return d1
 
     def __recursive_get_dict(self, d=None):
         if d is None:
