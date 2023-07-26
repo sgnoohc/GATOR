@@ -1,5 +1,6 @@
 #!/bin/env python
 import os
+import glob
 import argparse
 import subprocess
 
@@ -23,40 +24,7 @@ echo "Job init: $(date)"
 echo "Job done: $(date)"
 """
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Submit batch jobs")
-    parser.add_argument("config_json", type=str, help="config JSON")
-    parser.add_argument(
-        "--ingress", action="store_true",
-        help="run the data ingress step"
-    )
-    parser.add_argument(
-        "--train", action="store_true",
-        help="run the training step"
-    )
-    parser.add_argument(
-        "--infer", action="store_true",
-        help="run the inference step"
-    )
-    parser.add_argument(
-        "--plot", action="store_true",
-        help="run the plotting step"
-    )
-    parser.add_argument(
-        "-t", "--time", type=str, default="12:00:00", 
-        help="same as sbatch --time"
-    )
-    parser.add_argument(
-        "--account", type=str, default="", 
-        help="same as sbatch --account"
-    )
-    parser.add_argument(
-        "--qos", type=str, default="", 
-        help="same as sbatch --qos"
-    )
-    args = parser.parse_args()
-
-    config = GatorConfig.from_json(args.config_json)
+def submit(config, args):
 
     os.makedirs(f"{config.base_dir}/{config.name}", exist_ok=True)
 
@@ -100,7 +68,7 @@ if __name__ == "__main__":
         f.write(batch_script)
 
     sbatch = subprocess.run(["sbatch", batch_file, args.config_json], capture_output=True)
-    sbatch_stdout = sbatch.stdout.decode("utf-8")
+    sbatch_stdout = sbatch.stdout.decode("utf-8").replace("\n", "")
     print(sbatch_stdout)
 
     if sbatch.returncode == 0:
@@ -108,3 +76,44 @@ if __name__ == "__main__":
         print(f"Writing logs to {log_file.replace('%j', jobid)}")
     else:
         print(batch.stderr.decode("utf-8"))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Submit batch jobs")
+    parser.add_argument("config_json", type=str, help="config JSON")
+    parser.add_argument(
+        "--ingress", action="store_true",
+        help="run the data ingress step"
+    )
+    parser.add_argument(
+        "--train", action="store_true",
+        help="run the training step"
+    )
+    parser.add_argument(
+        "--infer", action="store_true",
+        help="run the inference step"
+    )
+    parser.add_argument(
+        "--plot", action="store_true",
+        help="run the plotting step"
+    )
+    parser.add_argument(
+        "-t", "--time", type=str, default="12:00:00", 
+        help="same as sbatch --time"
+    )
+    parser.add_argument(
+        "--account", type=str, default="", 
+        help="same as sbatch --account"
+    )
+    parser.add_argument(
+        "--qos", type=str, default="", 
+        help="same as sbatch --qos"
+    )
+    args = parser.parse_args()
+
+    if glob.glob(args.config_json):
+        for config_json in glob.glob(args.config_json):
+            config = GatorConfig.from_json(config_json)
+            submit(config, args)
+    else:
+        config = GatorConfig.from_json(args.config_json)
+        submit(config, args)
