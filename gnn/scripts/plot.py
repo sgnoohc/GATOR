@@ -1,3 +1,4 @@
+#!/bin/env python
 import argparse
 import json
 
@@ -9,7 +10,7 @@ from sklearn.metrics import roc_curve
 
 from utils import GatorConfig
 
-parser = argparse.ArgumentParser(description="Run inference")
+parser = argparse.ArgumentParser(description="Make standard plots")
 parser.add_argument("config_json", type=str, help="config JSON")
 parser.add_argument(
     "--epoch", type=int, default=50, metavar="N",
