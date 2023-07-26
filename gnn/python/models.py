@@ -67,7 +67,7 @@ class InteractionNetwork(MessagePassing):
         for round_i in range(self.n_msgpass_rounds - 1):
             x_latent = self.propagate(edge_index, x=x_latent, edge_attr=edge_attr, size=None)
 
-        m2 = torch.cat([x_latent[edge_index[1]], x_latent[edge_index[0]], edge_attr], dim=1)
+        m2 = torch.cat([x_latent[edge_index[1]], x_latent[edge_index[0]], self.msg], dim=1)
 
         return torch.sigmoid(self.edge_classifier(m2))
 
