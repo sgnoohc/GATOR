@@ -1,6 +1,5 @@
 {
     "base_dir": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2",
-    "name": "LineSegmentClassifier",
     "model": {
         "name": "ChangNet",
         "n_hidden_layers": 2,
