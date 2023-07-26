@@ -1,0 +1,110 @@
+#!/bin/env python
+import os
+import argparse
+import subprocess
+
+from utils import GatorConfig
+
+BATCH_SCRIPT = """#!/bin/bash
+#SBATCH --partition=gpu 
+#SBATCH --gpus=1 
+#SBATCH --mem=16gb 
+#SBATCH --constraint=a100 
+#SBATCH --time={time}
+#SBATCH --job-name={job_name}
+#SBATCH --account {account} 
+#SBATCH --qos {qos}
+#SBATCH --output {stdout}
+
+echo "Job init: $(date)"
+
+{steps}
+
+echo "Job done: $(date)"
+"""
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Submit batch jobs")
+    parser.add_argument("config_json", type=str, help="config JSON")
+    parser.add_argument(
+        "--ingress", action="store_true",
+        help="run the data ingress step"
+    )
+    parser.add_argument(
+        "--train", action="store_true",
+        help="run the training step"
+    )
+    parser.add_argument(
+        "--infer", action="store_true",
+        help="run the inference step"
+    )
+    parser.add_argument(
+        "--plot", action="store_true",
+        help="run the plotting step"
+    )
+    parser.add_argument(
+        "-t", "--time", type=str, default="12:00:00", 
+        help="same as sbatch --time"
+    )
+    parser.add_argument(
+        "--account", type=str, default="", 
+        help="same as sbatch --account"
+    )
+    parser.add_argument(
+        "--qos", type=str, default="", 
+        help="same as sbatch --qos"
+    )
+    args = parser.parse_args()
+
+    config = GatorConfig.from_json(args.config_json)
+
+    os.makedirs(f"{config.base_dir}/{config.name}", exist_ok=True)
+
+    full = not (args.ingress or args.train or args.infer or args.plot)
+    steps = ["source setup_hpg.sh"]
+    if args.ingress or full:
+        steps.append("python python/ingress.py $1")
+    if args.train or full:
+        steps.append("python python/train.py $1 --log_interval=10")
+    if args.infer or full:
+        steps.append("python python/infer.py $1 --epoch=50")
+    if args.plot or full:
+        steps.append("python scripts/plot.py $1 --epoch=50")
+
+    log_file = f"{config.base_dir}/{config.name}/slurm-%j.out"
+    cmd = [
+        "sbatch",
+        f"--partition=gpu",
+        f"--gpus=1",
+        f"--mem=16gb",
+        f"--constraint=a100",
+        f"--time={args.time}",
+        f"--job-name={config.name}",
+        f"--account={(args.account or config.get('account', 'avery'))}",
+        f"--qos={(args.qos or config.get('qos', 'avery'))}",
+        f"--output={log_file}",
+        f"--wrap=\"{'; '.join(steps)}\""
+    ]
+
+    batch_script = BATCH_SCRIPT.format(
+        time=args.time,
+        job_name=config.name,
+        account=(args.account or config.get("account", "avery")),
+        qos=(args.qos or config.get("qos", "avery")),
+        stdout=f"{config.base_dir}/{config.name}/slurm-%j.out",
+        steps="\n".join(steps)
+    )
+
+    batch_file = f"{config.base_dir}/{config.name}/job.script"
+    with open(batch_file, "w") as f:
+        f.write(batch_script)
+
+    sbatch = subprocess.run(["sbatch", batch_file, args.config_json], capture_output=True)
+    sbatch_stdout = sbatch.stdout.decode("utf-8")
+    print(sbatch_stdout)
+
+    if sbatch.returncode == 0:
+        jobid = sbatch_stdout.split(" ")[-1].replace("\n", "")
+        print(f"Writing logs to {log_file.replace('%j', jobid)}")
+    else:
+        print(batch.stderr.decode("utf-8"))
