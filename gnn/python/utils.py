@@ -3,17 +3,32 @@ import json
 from types import SimpleNamespace
 
 class GatorConfig(SimpleNamespace):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.get("name", None) is None:
+            self.name = "GatorConfig"
+
+    @classmethod
+    def from_dict(cls, config_dict, extra={}):
+        config_dict.update(extra)
+        return cls(**config_dict)
+
     @classmethod
     def from_json(cls, config_json, extra={}):
         with open(config_json, "r") as f:
             d = json.load(f)
             d["name"] = config_json.split("/")[-1].replace(".json", "")
-            d.update(extra)
-            return json.loads(json.dumps(d), object_hook=lambda d: cls(**d))
+            return cls.from_dict(d)
 
-    def write(self, outfile):
-        with open(outfile, "w") as f:
-            json.dump(self.__recursive_get_json(self.__dict__), f, indent=4)
+    def copy(self, extra={}):
+        config = GatorConfig.from_dict(self.__recursive_get_dict(), extra=extra)
+        return config
+
+    def dump(self, fstream):
+        json.dump(self.__recursive_get_dict(), fstream, indent=4)
+
+    def set_name(self, name):
+        self.name = name
 
     def get(self, key, default=None):
         return self.__dict__.get(key, default)
@@ -24,17 +39,19 @@ class GatorConfig(SimpleNamespace):
     def items(self):
         return self.__dict__.items()
 
-    def __recursive_get_json(self, d):
+    def __recursive_get_dict(self, d=None):
+        if d is None:
+            d = self.__dict__
         json = {}
         for key, val in d.items():
             if type(val) == type(self):
-                json[key] = self.__recursive_get_json(val)
+                json[key] = self.__recursive_get_dict(val)
             else:
                 json[key] = val
         return json
 
     def __str__(self):
-        return json.dumps(self.__recursive_get_json(self.__dict__), indent=4)
+        return json.dumps(self.__recursive_get_dict(), indent=4)
 
     def __getitem__(self, key):
         return self.get(key)
