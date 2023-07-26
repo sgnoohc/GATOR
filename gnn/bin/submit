@@ -1,6 +1,5 @@
 #!/bin/env python
 import os
-import glob
 import argparse
 import subprocess
 
@@ -24,7 +23,9 @@ echo "Job init: $(date)"
 echo "Job done: $(date)"
 """
 
-def submit(config, args):
+def submit(config_json, args):
+
+    config = GatorConfig.from_json(config_json)
 
     os.makedirs(f"{config.base_dir}/{config.name}", exist_ok=True)
 
@@ -67,7 +68,7 @@ def submit(config, args):
     with open(batch_file, "w") as f:
         f.write(batch_script)
 
-    sbatch = subprocess.run(["sbatch", batch_file, args.config_json], capture_output=True)
+    sbatch = subprocess.run(["sbatch", batch_file, config_json], capture_output=True)
     sbatch_stdout = sbatch.stdout.decode("utf-8").replace("\n", "")
     print(sbatch_stdout)
 
@@ -79,7 +80,7 @@ def submit(config, args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Submit batch jobs")
-    parser.add_argument("config_json", type=str, help="config JSON")
+    parser.add_argument("config_jsons", type=str, help="config JSON", nargs="*")
     parser.add_argument(
         "--ingress", action="store_true",
         help="run the data ingress step"
@@ -110,10 +111,5 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if glob.glob(args.config_json):
-        for config_json in glob.glob(args.config_json):
-            config = GatorConfig.from_json(config_json)
-            submit(config, args)
-    else:
-        config = GatorConfig.from_json(args.config_json)
-        submit(config, args)
+    for config_json in args.config_jsons:
+        submit(config_json, args)
