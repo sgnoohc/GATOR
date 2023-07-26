@@ -64,10 +64,11 @@ if __name__ == "__main__":
     times = []
     times += infer(
         model, device, train_loader, 
-        config.get_outfile(subdir="inferences", tag="train", ext="csv")
+        config.get_outfile(subdir="inferences", tag="train_inferences", epoch=args.epoch, ext="csv")
     )
     times += infer(
         model, device, test_loader, 
-        config.get_outfile(subdir="inferences", tag="test", ext="csv")
+        config.get_outfile(subdir="inferences", tag="test_inferences", epoch=args.epoch, ext="csv")
     )
     print(f"Avg. inference time: {sum(times)/len(times)}s")
+    print("\nDone.\n")

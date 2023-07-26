@@ -126,7 +126,7 @@ if __name__ == "__main__":
     optimizer = optim.Adam(
         model.parameters(), 
         lr=config.train.get("learning_rate", 0.001), 
-        weight_decay=config.train.get("weight_decay", 0)
+        # weight_decay=config.train.get("weight_decay", 0)
     )
     Scheduler = getattr(lr_schedulers, config.train.scheduler_name)
     scheduler = Scheduler(optimizer, **config.train.scheduler_kwargs)
@@ -154,3 +154,5 @@ if __name__ == "__main__":
             with open(history_json, "w") as f:
                 json.dump(history, f)
                 print(f"Wrote {history_json}")
+
+    print("\nDone.\n")

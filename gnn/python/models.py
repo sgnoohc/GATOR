@@ -15,7 +15,7 @@ class RelationalModel(nn.Module):
         super().__init__()
 
         hidden_layers = []
-        for layer_i in range(n_hidden_layers):
+        for layer_i in range(n_hidden_layers - 1):
             hidden_layers.append(nn.Linear(hidden_size, hidden_size))
             hidden_layers.append(nn.ReLU())
 
@@ -34,7 +34,7 @@ class ObjectModel(nn.Module):
         super().__init__()
 
         hidden_layers = []
-        for layer_i in range(n_hidden_layers):
+        for layer_i in range(n_hidden_layers - 1):
             hidden_layers.append(nn.Linear(hidden_size, hidden_size))
             hidden_layers.append(nn.ReLU())
 
