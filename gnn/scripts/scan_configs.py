@@ -17,6 +17,9 @@ def filename_str(value):
     else:
         return str(value).replace(".", "p").replace("-", "m")
 
+def get_config_json(config):
+    return f"configs/{config.name}.json"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Make standard plots")
     parser.add_argument("config_json", type=str, help="base config JSON")
@@ -83,33 +86,52 @@ if __name__ == "__main__":
     # Create new configs
     new_configs = []
     for settings in new_settings:
-        new_config = base_config.copy(extra=settings)
+        extra = {}
+        for key, value in settings.items():
+            subkeys = key.split(".")
+            k = subkeys.pop()
+            if len(subkeys) == 0:
+                extra[k] = value
+            elif len(subkeys) == 1:
+                k1, = subkeys
+                if k1 not in extra:
+                    extra[k1] = {}
+                extra[k1][k] = value
+            elif len(subkeys) == 2:
+                k1, k2 = subkeys
+                if k1 not in extra:
+                    extra[k1] = {}
+                if k2 not in extra[k1]:
+                    extra[k1][k2] = {}
+                extra[k1][k2][k] = value
+            else:
+                raise Exception(
+                    "the author was lazy and did not add support for deeply (> 2) nested configs"
+                )
+
+        new_config = base_config.copy(extra=extra)
 
         new_name = base_config.name
         for key, value in settings.items():
-            new_name += f"_{key}-{filename_str(value)}"
+            new_name += f"_{key.replace('.', '-')}-{filename_str(value)}"
         new_config.set_name(new_name)
 
         new_configs.append(new_config)
 
+    # Check if user really wants to make a lot of configs
+    print("Preparing new configs:")
+    print("\n".join([get_config_json(cfg) for cfg in new_configs[:5]]))
     if len(new_configs) > 5:
-        # Check if user really wants to make a lot of configs
-        print("Preparing new configs:")
-        print("\n".join([new_config.name for new_config in new_configs[:10]]))
-        print(f"+ {len(new_configs) - 10} more...\n")
+        print(f"+ {len(new_configs) - 5} more...\n")
         resp = None
         while resp not in ["Y", "y", "N", "n"]:
             resp = input(f"Create {len(new_configs)} new configs? (y/n): ")
         if resp == "N" or resp == "n":
             print("Aborted.")
             exit()
-    elif len(new_configs) > 0:
-        # Print the configs that are about to be written
-        print("Writing new configs:")
-        print("\n".join([new_config.name for new_config in new_configs]))
         
     # Write new configs
     for new_config in new_configs:
-        with open(f"configs/{new_config.name}.json", "w") as f:
+        with open(get_config_json(new_config), "w") as f:
             new_config.dump(f)
     print("Done.")
