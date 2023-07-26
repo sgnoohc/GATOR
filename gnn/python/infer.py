@@ -9,7 +9,7 @@ import models
 from utils import GatorConfig, SimpleProgress
 
 def infer(model, device, loader, output_csv):
-    csv_rows = ["idx,truth,score"]
+    csv_rows = ["LS_idx,label,score,MD_idx_0,MD_idx_1"]
     times = []
     for event_i, data in enumerate(SimpleProgress(loader)):
         data = data.to(device)
@@ -19,8 +19,8 @@ def infer(model, device, loader, output_csv):
         end = time()
         times.append(end - start)
 
-        for truth, score in zip(data.y, output):
-            csv_rows.append(f"{event_i},{int(truth)},{float(score)}")
+        for truth, score, md_0, md_1 in zip(data.y, output, data.edge_index[0], data.edge_index[1]):
+            csv_rows.append(f"{event_i},{int(truth)},{float(score)},{int(md_0)},{int(md_1)}")
 
     with open(output_csv, "w") as f:
         f.write("\n".join(csv_rows))
