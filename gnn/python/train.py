@@ -54,8 +54,8 @@ def test(model, device, test_loader):
         for data in test_loader:
             data = data.to(device)
             output = model(data.x, data.edge_index, data.edge_attr)
-            loss = F.binary_cross_entropy(output.squeeze(1), data.y, reduction="mean").item()
-            loss_sum += loss
+            loss = F.binary_cross_entropy(output.squeeze(1), data.y, reduction="mean")
+            loss_sum += loss.item()
 
     print(f"test runtime:  {time() - test_start:.3f}s", flush=True)
     print(f"test loss:     {loss_sum/n_events:.6f}", flush=True)
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     optimizer = optim.Adam(
         model.parameters(), 
         lr=config.train.get("learning_rate", 0.001), 
-        # weight_decay=config.train.get("weight_decay", 0)
+        weight_decay=config.train.get("weight_decay", 0)
     )
     Scheduler = getattr(lr_schedulers, config.train.scheduler_name)
     scheduler = Scheduler(optimizer, **config.train.scheduler_kwargs)
