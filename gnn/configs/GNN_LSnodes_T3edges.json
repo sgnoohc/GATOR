@@ -1,0 +1,82 @@
+{
+    "basedir": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2",
+    "model": {
+        "name": "ChangNet",
+        "n_hidden_layers": 4,
+        "hidden_size": 128,
+        "n_message_passing_rounds": 2,
+        "message_aggregator": "sum"
+    },
+    "ingress": {
+        "input_files": [
+            "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTNtuple_DNNTraining_hasT5Chi2_PU200.root"
+        ],
+        "ttree_name": "tree", 
+        "undirected": false,
+        "edge_indices": [
+            "t3_LS_idx0",
+            "t3_LS_idx1"
+        ],
+        "edge_features": [
+            "t3_pt",
+            "t3_eta",
+            "t3_phi",
+            "t3_radius",
+        ],
+        "node_features": [
+            "LS_pt",
+            "LS_eta",
+            "LS_phi",
+            "LS_0_r",
+            "LS_0_z",
+            "LS_0_dr",
+            "LS_0_layer",
+            "LS_1_r",
+            "LS_1_z",
+            "LS_1_dr",
+            "LS_1_layer",
+        ],
+        "truth_label": "t3_isFake",
+        "branch_filter": "/(t3|LS)_*/",
+        "transforms": {
+            "t3_pt": "log10",
+            "LS_pt": "log10"
+        },
+        "plot_labels": {
+            "t5_pt": "T5 $p_T$ [GeV]",
+            "t5_eta": "T5 $\\eta$",
+            "t5_phi": "T5 $\\phi$",
+            "t5_innerRadius": "T5 inner radius",
+            "t5_bridgeRadius": "T5 bridge radius",
+            "t5_outerRadius": "T5 outer radius",
+            "t3_pt": "T3 $p_T$ [GeV]",
+            "t3_0_eta": "T3 inner anchor hit $\\phi$",
+            "t3_0_phi": "T3 inner anchor hit $\\eta$",
+            "t3_0_z": "T3 inner anchor hit z",
+            "t3_0_r": "T3 inner anchor hit r",
+            "t3_0_layer": "T3 inner anchor hit layer",
+            "t3_2_eta": "T3 middle anchor hit $\\phi$",
+            "t3_2_phi": "T3 middle anchor hit $\\eta$",
+            "t3_2_z": "T3 middle anchor hit z",
+            "t3_2_r": "T3 middle anchor hit r",
+            "t3_2_layer": "T3 middle anchor hit layer",
+            "t3_4_eta": "T3 outer anchor hit $\\phi$",
+            "t3_4_phi": "T3 outer anchor hit $\\eta$",
+            "t3_4_z": "T3 outer anchor hit z",
+            "t3_4_r": "T3 outer anchor hit r",
+            "t3_4_layer": "T3 outer anchor hit layer"
+        }
+    },
+    "train": {
+        "train_frac": 0.7,
+        "train_batch_size": 10,
+        "test_batch_size": 1000,
+        "learning_rate": 0.002,
+        "seed": 1234,
+        "scheduler_name": "ConstantLR",
+        "scheduler_kwargs": {
+            "factor": 1.0
+        },
+        "n_epochs": 200
+    }
+}
