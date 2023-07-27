@@ -47,7 +47,12 @@ class EdgeDataset(Dataset):
         for i, r in enumerate(idx_ranges):
             self.__idx_ranges[r] = i
 
-        self.__idx_map = self.__split_idx_map(idx_ranges)
+        if len(idx_ranges) > 1:
+            self.__idx_map = self.__split_idx_map(idx_ranges)
+        elif len(idx_ranges) == 1:
+            self.__idx_map = {idx_ranges[0]: [idx_ranges[0]]}
+        else:
+            self.__idx_map = {}
 
     def __range_lims(self, idx_ranges):
         return (idx_ranges[0][0], idx_ranges[-1][-1])
@@ -72,7 +77,7 @@ class EdgeDataset(Dataset):
 
     def __find_idx(self, idx):
         finished = True
-        next_search = self.__idx_map[self.__idx_range]
+        next_search = self.__idx_map
         while type(next_search) == dict:
             found = False
             for key in next_search.keys():
