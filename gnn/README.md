@@ -8,19 +8,27 @@ The code is organized as follows:
 - `configs`: contains configuration JSONs for each GATOR ML model
 
 ## Quick start
-1. Start an interactive session on a HPG GPU node and source the setup script
+1. Edit the `base_dir` setting in `configs/ChangGNN_MDnodes_LSedges.json` such that it points to your `/blue` area:
+```diff
+{
+-    "base_dir": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2",
++    "base_dir": "/blue/p.chang/USER/data/lst/GATOR/CMSSW_12_2_0_pre2",
+    ...
+}
+```
+2. Start an interactive session on a HPG GPU node and source the setup script
 ```
 srun --partition=gpu --gpus=1 --mem=16gb --constraint=a100 --pty bash -i
 source setup_hpg.sh
 ```
-2. Run each step of the pipeline for an example config
+3. Run each step of the pipeline for an example config
 ```
 python python/ingress.py configs/ChangGNN_MDnodes_LSedges.json
 python python/train.py configs/ChangGNN_MDnodes_LSedges.json
 python python/infer.py configs/ChangGNN_MDnodes_LSedges.json
 python scripts/plot.py configs/ChangGNN_MDnodes_LSedges.json
 ```
-3. Rather than running the above interactively, this can instead be run via a batch job
+4. Rather than running the above interactively, this can instead be run via a batch job
 ```
 ./bin/submit configs/ChangGNN_MDnodes_LSedges.json
 ```
