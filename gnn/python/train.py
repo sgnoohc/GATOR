@@ -92,12 +92,22 @@ if __name__ == "__main__":
     for pt_file in glob.glob(f"{config.base_dir}/{config.name}/inputs/*.pt"):
         graphs += torch.load(pt_file)
 
-    # Shuffle graphs and get test/train samples
-    n_graphs = len(graphs)
-    n_train = int(n_graphs*config.train.train_frac)
-    random.shuffle(graphs)
-    train_loader = graphs[:n_train]
-    test_loader = graphs[n_train:]
+    # Get test/train samples
+    train_loader = None
+    test_loader = None
+    if config.train.get("train_frac", None):
+        random.shuffle(graphs)
+        n_graphs = len(graphs)
+        n_train = int(n_graphs*config.train.train_frac)
+        train_loader = graphs[:n_train]
+        test_loader = graphs[n_train:]
+    elif config.train.get("train_range", None) and config.train.get("test_range", None):
+        train_start, train_stop = config.train.train_range
+        test_start, test_stop = config.train.test_range
+        train_loader = graphs[train_start:train_stop]
+        test_loader = graphs[test_start:test_stop]
+    else:
+        raise Exception("No test/train split specified")
 
     # Save test/train samples
     torch.save(train_loader, config.get_outfile(subdir="datasets", tag="train", short=True))
@@ -135,6 +145,7 @@ if __name__ == "__main__":
     history = {"train_loss": [], "test_loss": []}
     history_json = config.get_outfile(tag="history", ext="json", short=True)
     for epoch in range(1, config.train.n_epochs + 1):
+        # Run testing and training
         epoch_start = time()
         print_title(f"Epoch {epoch}")
         train_loss = train(args, model, device, train_loader, optimizer, epoch)
@@ -143,13 +154,17 @@ if __name__ == "__main__":
 
         print(f"total runtime: {time() - epoch_start:.3f}s", flush=True)
 
+        # Update history JSON
+        history["train_loss"].append(train_loss)
+        history["test_loss"].append(test_loss)
+
+        # Save model every 5 epochs
         if not args.dry_run and (epoch % 5 == 0 or epoch == config.train.n_epochs):
             outfile = config.get_outfile(subdir="models", epoch=epoch)
             torch.save(model.state_dict(), outfile)
             print(f"Wrote {outfile}")
 
-        history["train_loss"].append(train_loss)
-        history["test_loss"].append(test_loss)
+        # Save history JSON every 50 epochs
         if epoch % 50 == 0 or epoch == config.train.n_epochs:
             with open(history_json, "w") as f:
                 json.dump(history, f)
