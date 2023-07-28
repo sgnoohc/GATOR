@@ -4,8 +4,6 @@
         "name": "ChangNet",
         "n_hidden_layers": 2,
         "hidden_size": 200,
-        "n_message_features": 3,
-        "n_latent_node_features": 3,
         "n_message_passing_rounds": 1,
         "message_aggregator": "add"
     },
@@ -37,9 +35,7 @@
         "branch_filter": "/(MD|LS)_*/"
     },
     "train": {
-        "train_frac": 0.543,
-        "train_batch_size": 64,
-        "test_batch_size": 1000,
+        "train_frac": 0.7,
         "learning_rate": 0.005,
         "seed": 1234,
         "scheduler_name": "StepLR",
@@ -47,6 +43,6 @@
             "gamma": 0.7,
             "step_size": 5
         },
-        "n_epochs": 50
+        "n_epochs": 200
     }
 }
