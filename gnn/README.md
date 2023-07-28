@@ -53,6 +53,7 @@ This JSON can be slightly different for GNNs vs. DNNs, so each
   - `branch_filter`: filter that selects only relevant branch names (optional)
 - `train`:
   - `train_frac`: fraction of events to use for training (the rest is used for testing)
+    - OR `train_range` and `test_range` can be used to specify exactly what range of events to use for training and testing
   - `learning_rate`: learning rate,
   - `seed`: seed for random number generation
   - `scheduler_name`: name of pytorch scheduler to use
@@ -78,6 +79,9 @@ This JSON can be slightly different for GNNs vs. DNNs, so each
   - `branch_filter`: filter that selects only relevant branch names (optional)
 - `train`:
   - `train_frac`: fraction of events to use for training (the rest is used for testing)
+    - OR `train_range` and `test_range` can be used to specify exactly what range of events to use for training and testing
+  - `train_batch_size`: training batch size
+  - `test_batch_size`: testing batch size
   - `learning_rate`: learning rate,
   - `seed`: seed for random number generation
   - `scheduler_name`: name of pytorch scheduler to use
