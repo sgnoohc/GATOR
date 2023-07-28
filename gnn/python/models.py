@@ -10,6 +10,62 @@ from torch.nn import Sequential as Seq, Linear, ReLU, Sigmoid
 
 from utils import GatorConfig, print_title
 
+class LeakyDNN(nn.Module):
+    def __init__(self, config: GatorConfig):
+        super().__init__()
+        n_edge_features = len(config.ingress.edge_features)
+        n_node_features = len(config.ingress.node_features)
+        input_size = 2*n_node_features + n_edge_features
+        n_hidden_layers = config.model.get("n_hidden_layers", 1)
+        hidden_size = config.model.get("hidden_size", 64)
+
+        hidden_layers = []
+        for layer_i in range(n_hidden_layers):
+            hidden_layers.append(nn.Linear(hidden_size, hidden_size))
+            hidden_layers.append(nn.LeakyReLU())
+
+        self.layers = nn.Sequential(
+            nn.Linear(input_size, hidden_size),
+            nn.LeakyReLU(),
+            *hidden_layers,
+            nn.Linear(hidden_size, 1),
+            nn.Sigmoid()
+        )
+
+        print_title("Leaky DNN Config")
+        print(self)
+
+    def forward(self, node_attr, edge_idxs, edge_attr):
+        return self.layers(torch.cat((node_attr, edge_attr), dim=1)).unsqueeze(1)
+
+class DNN(nn.Module):
+    def __init__(self, config: GatorConfig):
+        super().__init__()
+        n_edge_features = len(config.ingress.edge_features)
+        n_node_features = len(config.ingress.node_features)
+        input_size = 2*n_node_features + n_edge_features
+        n_hidden_layers = config.model.get("n_hidden_layers", 1)
+        hidden_size = config.model.get("hidden_size", 64)
+
+        hidden_layers = []
+        for layer_i in range(n_hidden_layers):
+            hidden_layers.append(nn.Linear(hidden_size, hidden_size))
+            hidden_layers.append(nn.ReLU())
+
+        self.layers = nn.Sequential(
+            nn.Linear(input_size, hidden_size),
+            nn.ReLU(),
+            *hidden_layers,
+            nn.Linear(hidden_size, 1),
+            nn.Sigmoid()
+        )
+
+        print_title("DNN Config")
+        print(self)
+
+    def forward(self, node_attr, edge_idxs, edge_attr):
+        return self.layers(torch.cat((node_attr, edge_attr), dim=1)).unsqueeze(1)
+
 class RelationalModel(nn.Module):
     def __init__(self, input_size, output_size, n_hidden_layers, hidden_size):
         super().__init__()
@@ -84,68 +140,12 @@ class InteractionNetwork(MessagePassing):
         c = torch.cat([x, aggr_out], dim=1)
         return self.readout_mlp(c)
 
-class LeakyDNN(nn.Module):
-    def __init__(self, config: GatorConfig):
-        super().__init__()
-        n_edge_features = len(config.ingress.edge_features)
-        n_node_features = len(config.ingress.node_features)
-        input_size = 2*n_node_features + n_edge_features
-        n_hidden_layers = config.model.get("n_hidden_layers", 1)
-        hidden_size = config.model.get("hidden_size", 64)
-
-        hidden_layers = []
-        for layer_i in range(n_hidden_layers):
-            hidden_layers.append(nn.Linear(hidden_size, hidden_size))
-            hidden_layers.append(nn.LeakyReLU())
-
-        self.layers = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
-            nn.LeakyReLU(),
-            *hidden_layers,
-            nn.Linear(hidden_size, 1),
-            nn.Sigmoid()
-        )
-
-        print_title("Leaky DNN Config")
-        print(self)
-
-    def forward(self, node_attr, edge_idxs, edge_attr):
-        return self.layers(torch.cat((node_attr, edge_attr), dim=1)).unsqueeze(1)
-
-class DNN(nn.Module):
-    def __init__(self, config: GatorConfig):
-        super().__init__()
-        n_edge_features = len(config.ingress.edge_features)
-        n_node_features = len(config.ingress.node_features)
-        input_size = 2*n_node_features + n_edge_features
-        n_hidden_layers = config.model.get("n_hidden_layers", 1)
-        hidden_size = config.model.get("hidden_size", 64)
-
-        hidden_layers = []
-        for layer_i in range(n_hidden_layers):
-            hidden_layers.append(nn.Linear(hidden_size, hidden_size))
-            hidden_layers.append(nn.ReLU())
-
-        self.layers = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
-            nn.ReLU(),
-            *hidden_layers,
-            nn.Linear(hidden_size, 1),
-            nn.Sigmoid()
-        )
-
-        print_title("DNN Config")
-        print(self)
-
-    def forward(self, node_attr, edge_idxs, edge_attr):
-        return self.layers(torch.cat((node_attr, edge_attr), dim=1)).unsqueeze(1)
-
 class ChangNet(InteractionNetwork):
     def __init__(self, config: GatorConfig):
         n_edge_features = len(config.ingress.edge_features)
         n_node_features = len(config.ingress.node_features)
-        n_msg_features = config.model.get("n_message_features", n_edge_features)
-        n_lnode_features = config.model.get("n_latent_node_features", n_node_features)
+        n_msg_features = config.model.get("message_size", n_edge_features)
+        n_lnode_features = config.model.get("latent_node_size", n_node_features)
         n_hidden_layers = config.model.get("n_hidden_layers", 1)
         hidden_size = config.model.get("hidden_size", 200)
 
