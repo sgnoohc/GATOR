@@ -118,6 +118,10 @@ if __name__ == "__main__":
 
         new_configs.append(new_config)
 
+    if len(new_configs) == 0:
+        print("No configs to prepare.")
+        exit()
+
     # Check if user really wants to make a lot of configs
     print("Preparing new configs:")
     print("\n".join([get_config_json(cfg) for cfg in new_configs[:5]]))
@@ -134,4 +138,5 @@ if __name__ == "__main__":
     for new_config in new_configs:
         with open(get_config_json(new_config), "w") as f:
             new_config.dump(f)
+
     print("Done.")
