@@ -4,7 +4,7 @@ A set of scripts has also been developed for deploying these trainings via `slur
 The code is organized as follows:
 - `bin`: contains executables for managing and monitoring GATOR ML jobs
 - `python`: contains the scripts responsible for running the entire ML pipeline, from data ingress, to training, to saving the model inferences; these scripts are expected to be well-maintained and generalizeable to all GATOR ML models
-- `scripts`: contains various scripts for doing more specific operations; e.g. plotting or creating configs for hyperparameter scans
+- `scripts`: contains various scripts for doing more specific operations, e.g. plotting or creating configs for hyperparameter scans
 - `configs`: contains configuration JSONs for each GATOR ML model
 
 ## Quick start
@@ -19,14 +19,14 @@ The code is organized as follows:
 2. Start an interactive session on a HPG GPU node and source the setup script
 ```
 srun --partition=gpu --gpus=1 --mem=16gb --constraint=a100 --pty bash -i
-source setup_hpg.sh
 ```
 3. Run each step of the pipeline for an example config
 ```
-python python/ingress.py configs/ChangGNN_MDnodes_LSedges.json
-python python/train.py configs/ChangGNN_MDnodes_LSedges.json
-python python/infer.py configs/ChangGNN_MDnodes_LSedges.json
-python scripts/plot.py configs/ChangGNN_MDnodes_LSedges.json
+source setup_hpg.sh                                             # set up ML training environment
+python python/ingress.py configs/ChangGNN_MDnodes_LSedges.json  # ingress data from ROOT files to pyG data objects
+python python/train.py configs/ChangGNN_MDnodes_LSedges.json    # train model
+python python/infer.py configs/ChangGNN_MDnodes_LSedges.json    # save inferences to a CSV
+python scripts/plot.py configs/ChangGNN_MDnodes_LSedges.json    # make standard performance plots (e.g. ROC curve)
 ```
 4. Rather than running the above interactively, this can instead be run via a batch job
 ```
