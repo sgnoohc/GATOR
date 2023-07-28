@@ -1,0 +1,51 @@
+{
+    "base_dir": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2",
+    "model": {
+        "name": "ChangNet",
+        "n_hidden_layers": 2,
+        "hidden_size": 200,
+        "message_size": 3,
+        "latent_node_size": 3,
+        "n_message_passing_rounds": 1,
+        "message_aggregator": "add"
+    },
+    "ingress": {
+        "input_files": [
+            "/blue/p.chang/p.chang/data/lst/CMSSW_12_2_0_pre2/LSTGnnNtuple_ttbar_PU200.root"
+        ],
+        "ttree_name": "tree", 
+        "undirected": false,
+        "edge_indices": [
+            "LS_MD_idx0",
+            "LS_MD_idx1"
+        ],
+        "edge_features": [
+            "LS_pt",
+            "LS_eta",
+            "LS_phi"
+        ],
+        "node_features": [
+            "MD_0_x",
+            "MD_0_y",
+            "MD_0_z",
+            "MD_1_x",
+            "MD_1_y",
+            "MD_1_z",
+            "MD_dphichange"
+        ],
+        "truth_label": "LS_isFake",
+        "branch_filter": "/(MD|LS)_*/"
+    },
+    "train": {
+        "train_range": [0, 95],
+        "test_range": [95, 100],
+        "learning_rate": 0.005,
+        "seed": 1234,
+        "scheduler_name": "StepLR",
+        "scheduler_kwargs": {
+            "gamma": 0.7,
+            "step_size": 5
+        },
+        "n_epochs": 50
+    }
+}
