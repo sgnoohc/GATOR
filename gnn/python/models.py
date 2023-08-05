@@ -20,7 +20,7 @@ class LeakyDNN(nn.Module):
         hidden_size = config.model.get("hidden_size", 64)
 
         hidden_layers = []
-        for layer_i in range(n_hidden_layers):
+        for layer_i in range(n_hidden_layers - 1):
             hidden_layers.append(nn.Linear(hidden_size, hidden_size))
             hidden_layers.append(nn.LeakyReLU())
 
@@ -48,7 +48,7 @@ class DNN(nn.Module):
         hidden_size = config.model.get("hidden_size", 64)
 
         hidden_layers = []
-        for layer_i in range(n_hidden_layers):
+        for layer_i in range(n_hidden_layers - 1):
             hidden_layers.append(nn.Linear(hidden_size, hidden_size))
             hidden_layers.append(nn.ReLU())
 
