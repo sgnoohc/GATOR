@@ -5,7 +5,7 @@ class EdgeDataBatch:
     def __init__(self, batch):
         data = list(zip(*batch))
         self.x = torch.stack(data[0])
-        self.edge_index = data[1]
+        self.edge_index = torch.stack(data[1])
         self.edge_attr = torch.stack(data[2])
         self.y = torch.stack(data[3])
 
@@ -111,12 +111,13 @@ class EdgeDataset(Dataset):
         (low, high), event = self.__find_idx(idx)
         data = self.data[event]
         edge_attr = data.edge_attr[idx - low]
-        i, j = data.edge_index[:,idx - low]
+        edge_index = data.edge_index[:,idx - low]
+        i, j = edge_index
         node_i = data.x[i].transpose(0, -1)
         node_j = data.x[j].transpose(0, -1)
         return (
             torch.cat((node_i, node_j)),
-            (i, j),
+            edge_index,
             edge_attr,
             data.y[idx - low].reshape(1)
         )
