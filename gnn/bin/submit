@@ -36,9 +36,11 @@ def submit(config_json, args):
     if args.train or full:
         steps.append("python python/train.py $1 --log_interval=10")
     if args.infer or full:
-        steps.append("python python/infer.py $1 --epoch=50")
+        epoch = args.infer or 50
+        steps.append(f"python python/infer.py $1 --epoch={epoch}")
     if args.plot or full:
-        steps.append("python scripts/plot.py $1 --epoch=50")
+        epoch = args.plot or 50
+        steps.append(f"python scripts/plot.py $1 --epoch={epoch}")
 
     log_file = f"{config.base_dir}/{config.name}/slurm-%j.out"
     cmd = [
@@ -90,12 +92,12 @@ if __name__ == "__main__":
         help="run the training step"
     )
     parser.add_argument(
-        "--infer", action="store_true",
-        help="run the inference step"
+        "--infer", type=int, default=0,
+        help="run the inference step at a given epoch"
     )
     parser.add_argument(
-        "--plot", action="store_true",
-        help="run the plotting step"
+        "--plot", type=int, default=0,
+        help="run the plotting step at a given epoch"
     )
     parser.add_argument(
         "-t", "--time", type=str, default="12:00:00", 
