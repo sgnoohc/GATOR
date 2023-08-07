@@ -1,5 +1,6 @@
 import os
 import json
+import hashlib
 from types import SimpleNamespace
 
 class GatorConfig(SimpleNamespace):
@@ -63,6 +64,10 @@ class GatorConfig(SimpleNamespace):
     def __getitem__(self, key):
         return self.get(key)
 
+    def get_hash(self):
+        sha1_hash = hashlib.sha1(json.dumps(self.__recursive_get_dict()).encode("utf-8"))
+        return sha1_hash.hexdigest()
+
     def get_outfile(self, subdir=None, ext="pt", tag=None, epoch=None, quiet=True, short=False):
         outdir = f"{self.base_dir}/{self.name}"
         if subdir:
@@ -73,8 +78,6 @@ class GatorConfig(SimpleNamespace):
         if not short:
             outfile += (
                 f"_model{self.model.name}"
-                + f"_nhidden{self.model.n_hidden_layers}"
-                + f"_hiddensize{self.model.hidden_size}"
                 + f"_lr{self.train.scheduler_name}{self.train.learning_rate}"
             )
         if not epoch is None:
@@ -82,7 +85,7 @@ class GatorConfig(SimpleNamespace):
         if not tag is None:
             outfile += f"_{tag}"
 
-        outfile += f".{ext}"
+        outfile += f"_{self.get_hash()[:8]}.{ext}"
 
         if not quiet:
             print(outfile)
