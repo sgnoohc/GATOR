@@ -77,6 +77,10 @@ if __name__ == "__main__":
 
     config = GatorConfig.from_json(args.config_json)
 
+    # Write a copy of the config
+    with open(config.get_outfile(ext="json", tag="config", short=True), "w") as f:
+        config.dump(f)
+
     print_title("Configuration")
     print(config)
 
