@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     # Load model
     Model = getattr(models, config.model.name)
-    model = Model(config)
+    model = Model.from_config(config)
     saved_model = config.get_outfile(subdir="models", epoch=args.epoch)
     model.load_state_dict(torch.load(saved_model, map_location=device))
     model.eval()

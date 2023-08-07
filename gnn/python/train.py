@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     # Load model
     Model = getattr(models, config.model.name)
-    model = Model(config).to(device)
+    model = Model.from_config(config).to(device)
     total_trainable_params = sum(p.numel() for p in model.parameters())
     print(f"total trainable params: {total_trainable_params}")
 

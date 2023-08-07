@@ -1,6 +1,7 @@
 #!/bin/env python
 import argparse
 import json
+import os
 
 import numpy as np
 import pandas as pd
@@ -28,6 +29,7 @@ args = parser.parse_args()
 
 config = GatorConfig.from_json(args.config_json)
 plots_dir = f"{config.base_dir}/{config.name}/plots"
+os.makedirs(plots_dir, exist_ok=True)
 
 # Get history JSON
 history = {}
