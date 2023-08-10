@@ -106,6 +106,8 @@ if __name__ == "__main__":
         train_loader = graphs[:n_train]
         test_loader = graphs[n_train:]
     elif config.train.get("train_range", None) and config.train.get("test_range", None):
+        if config.train.get("shuffle", False):
+            random.shuffle(graphs)
         train_start, train_stop = config.train.train_range
         test_start, test_stop = config.train.test_range
         train_loader = graphs[train_start:train_stop]
