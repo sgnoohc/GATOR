@@ -1,17 +1,19 @@
 {
     "base_dir": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2",
     "model": {
-        "name": "ChangNet",
-        "n_hidden_layers": 2,
-        "hidden_size": 200,
-        "n_message_passing_rounds": 1,
+        "name": "InteractionNetwork",
+        "message_size": 2,
+        "latent_node_size": 4,
+        "mlp_n_hidden_layers": 2,
+        "mlp_hidden_size": 200,
+        "n_message_passing_rounds": 2,
         "message_aggregator": "add"
     },
     "ingress": {
         "input_files": [
             "/blue/p.chang/p.chang/data/lst/CMSSW_12_2_0_pre2/LSTGnnNtuple_ttbar_PU200.root"
         ],
-        "ttree_name": "tree", 
+        "ttree_name": "tree",
         "undirected": false,
         "edge_indices": [
             "LS_MD_idx0",
@@ -36,6 +38,8 @@
     },
     "train": {
         "train_frac": 0.7,
+        "train_batch_size": 64,
+        "test_batch_size": 1000,
         "learning_rate": 0.005,
         "seed": 1234,
         "scheduler_name": "StepLR",
