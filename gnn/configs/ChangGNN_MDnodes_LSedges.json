@@ -1,11 +1,11 @@
 {
     "base_dir": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2",
     "model": {
-        "name": "ChangNet",
-        "n_hidden_layers": 2,
-        "hidden_size": 200,
+        "name": "InteractionNetwork",
         "message_size": 3,
         "latent_node_size": 3,
+        "mlp_n_hidden_layers": 2,
+        "mlp_hidden_size": 200,
         "n_message_passing_rounds": 1,
         "message_aggregator": "add"
     },
