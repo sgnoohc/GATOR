@@ -5,12 +5,13 @@ class EdgeDataBatch:
     def __init__(self, batch):
         data = list(zip(*batch))
         self.x = torch.stack(data[0])
-        self.edge_index = torch.stack(data[1])
+        self.edge_index = torch.stack(data[1]).T
         self.edge_attr = torch.stack(data[2])
-        self.y = torch.stack(data[3])
+        self.y = torch.stack(data[3]).squeeze(1)
 
     def to(self, device):
         self.x = self.x.to(device)
+        self.edge_index = self.edge_index.to(device)
         self.edge_attr = self.edge_attr.to(device)
         self.y = self.y.to(device)
         return self

@@ -21,9 +21,9 @@ def infer(model, device, loader, output_csv):
 
         data_to_save = (
             data.y,                 # labels
-            output,                 # predictions
-            data.edge_index[:,0],   # node 0 index
-            data.edge_index[:,1]    # node 1 index
+            output.squeeze(1),      # predictions
+            data.edge_index[0],     # node 0 index
+            data.edge_index[1]      # node 1 index
         )
         for LS_i, (truth, score, n0, n1) in enumerate(zip(*data_to_save)):
             csv_rows.append(f"{event_i},{LS_i},{int(truth)},{float(score)},{int(n0)},{int(n1)}")
@@ -57,6 +57,7 @@ if __name__ == "__main__":
     model = model.to(device)
 
     # Load test/train samples
+    print("Loading data...")
     train_loader = torch.load(config.get_outfile(subdir="datasets", tag="train", short=True))
     test_loader = torch.load(config.get_outfile(subdir="datasets", tag="test", short=True))
     
@@ -64,9 +65,14 @@ if __name__ == "__main__":
         from datasets import EdgeDataset, EdgeDataBatch
         from torch.utils.data import DataLoader
         # Hacky PyG graph-level GNN inputs --> edge-level DNN inputs
-        train_loader = DataLoader(EdgeDataset(train_loader), collate_fn=lambda batch: EdgeDataBatch(batch))
-        test_loader = DataLoader(EdgeDataset(test_loader), collate_fn=lambda batch: EdgeDataBatch(batch))
+        train_loader = DataLoader(
+            EdgeDataset(train_loader), batch_size=10000, collate_fn=lambda batch: EdgeDataBatch(batch)
+        )
+        test_loader = DataLoader(
+            EdgeDataset(test_loader), batch_size=10000, collate_fn=lambda batch: EdgeDataBatch(batch)
+        )
 
+    print("Running inferences...")
     times = []
     times += infer(
         model, device, train_loader, 
