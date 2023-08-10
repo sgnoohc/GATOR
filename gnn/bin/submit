@@ -92,11 +92,11 @@ if __name__ == "__main__":
         help="run the training step"
     )
     parser.add_argument(
-        "--infer", type=int, default=0,
+        "--infer", type=int, default=0, metavar="EPOCH",
         help="run the inference step at a given epoch"
     )
     parser.add_argument(
-        "--plot", type=int, default=0,
+        "--plot", type=int, default=0, metavar="EPOCH",
         help="run the plotting step at a given epoch"
     )
     parser.add_argument(
