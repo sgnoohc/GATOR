@@ -40,7 +40,7 @@ class LeakyDNN(nn.Module):
         return cls(input_size, n_hidden_layers, hidden_size)
 
     def forward(self, node_attr, edge_idxs, edge_attr):
-        return self.layers(torch.cat((node_attr, edge_attr), dim=1)).unsqueeze(1)
+        return self.layers(torch.cat((node_attr, edge_attr), dim=1))
 
 class DNN(nn.Module):
     def __init__(self, input_size, n_hidden_layers, hidden_size):
@@ -72,7 +72,7 @@ class DNN(nn.Module):
         return cls(input_size, n_hidden_layers, hidden_size)
 
     def forward(self, node_attr, edge_idxs, edge_attr):
-        return self.layers(torch.cat((node_attr, edge_attr), dim=1)).unsqueeze(1)
+        return self.layers(torch.cat((node_attr, edge_attr), dim=1))
 
 class RelationalModel(nn.Module):
     def __init__(self, input_size, output_size, n_hidden_layers, hidden_size):
