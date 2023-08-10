@@ -42,10 +42,10 @@ This JSON can be slightly different for GNNs vs. DNNs, so each
 - `base_dir`: base directory for all outputs (on HPG, this should be somewhere on `/blue`)
 - `model`:
   - `name`: name of the model to use; check `python/models.py` for the available models
-  - `n_hidden_layers`: number of hidden layers for GNN MLPs,
-  - `hidden_size`: size of hidden layers of GNN MLPs,
+  - `mlp_n_hidden_layers`: number of hidden layers for GNN MLPs,
+  - `mlp_hidden_size`: size of hidden layers of GNN MLPs,
   - `message_size`: size of message (default: number of edge features),
-  - `latend_node_size`: size of latent node (default: number of node features),
+  - `latent_node_size`: size of latent node (default: number of node features),
   - `n_message_passing_rounds`: number of message passing rounds,
   - `message_aggregator`: message aggregator (default: "max")
 - `ingress`:
@@ -56,7 +56,7 @@ This JSON can be slightly different for GNNs vs. DNNs, so each
   - `edge_features`: list of branches containing edge features (e.g. LS pT, eta, phi, ...)
   - `node_features`: list of branches containing node features (e.g. MD pT, x, y, z, ...)
   - `transforms`: sub-mapping of `feature`:`transform` key-value pairs; supported transformations can be found in `python/ingress.py` in the `transform` function
-  - `plot_labels`: sub-mapping of `feature`:`label` key-value pairs for plotting; labels are passed directly to `matplotlib.axes.Axes.set_xlabel`
+  - `plot_labels`: sub-mapping of `feature`:`label` key-value pairs for plotting; labels are passed directly to `matplotlib.axes.Axes.set_xlabel`, and the branch names are used by default
   - `truth_label`: name of branch containing the truth label for the intended classification task
   - `branch_filter`: filter that selects only relevant branch names (optional)
 - `train`:
@@ -82,12 +82,13 @@ This JSON can be slightly different for GNNs vs. DNNs, so each
   - `edge_features`: list of branches containing edge features (e.g. LS pT, eta, phi, ...); DNN input features are the edge and node features concatenated together
   - `node_features`: list of branches containing node features (e.g. MD pT, x, y, z, ...); DNN input features are the edge and node features concatenated together
   - `transforms`: sub-mapping of `feature`:`transform` key-value pairs; supported transformations can be found in `python/ingress.py` in the `transform` function
-  - `plot_labels`: sub-mapping of `feature`:`label` key-value pairs for plotting; labels are passed directly to `matplotlib.axes.Axes.set_xlabel`
+  - `plot_labels`: sub-mapping of `feature`:`label` key-value pairs for plotting; labels are passed directly to `matplotlib.axes.Axes.set_xlabel`, and the branch names are used by default
   - `truth_label`: name of branch containing the truth label for the intended classification task
   - `branch_filter`: filter that selects only relevant branch names (optional)
 - `train`:
   - `train_frac`: fraction of events to use for training (the rest is used for testing)
     - OR `train_range` and `test_range` can be used to specify exactly what range of events to use for training and testing
+  - `shuffle`: ensures that testing/training datasets contain a random set of events (used only when `test_range` and `train_range` are used to define the testing/training datasets)
   - `train_batch_size`: training batch size
   - `test_batch_size`: testing batch size
   - `learning_rate`: learning rate,
@@ -112,11 +113,16 @@ For example, just the ingress and training step may be run as follows:
 ```
 ./bin/submit configs/CONFIG.json --ingress --train
 ```
+Or, one may want to run the ingress/plotting step for several different epochs:
+```
+./bin/submit configs/CONFIG.json --infer=100 --plot=100
+./bin/submit configs/CONFIG.json --infer=200 --plot=200
+./bin/submit configs/CONFIG.json --infer=300 --plot=300
+```
 Some job properties may also be set via the CLI, like the time limit and account/QOS properties. 
 The full set of options can be found by checking the `--help` output:
 ```
-$ ./bin/submit --help
-usage: submit [-h] [--ingress] [--train] [--infer] [--plot] [-t TIME] [--account ACCOUNT] [--qos QOS] [config_jsons ...]
+usage: submit [-h] [--ingress] [--train] [--infer EPOCH] [--plot EPOCH] [-t TIME] [--account ACCOUNT] [--qos QOS] [config_jsons ...]
 
 Submit batch jobs
 
@@ -127,13 +133,11 @@ options:
   -h, --help            show this help message and exit
   --ingress             run the data ingress step
   --train               run the training step
-  --infer               run the inference step
-  --plot                run the plotting step
+  --infer EPOCH         run the inference step at a given epoch
+  --plot EPOCH          run the plotting step at a given epoch
   -t TIME, --time TIME  same as sbatch --time
   --account ACCOUNT     same as sbatch --account
   --qos QOS             same as sbatch --qos
-```
-Finally, jobs may be monitored with the `bin/queue` executable:
 ```
 $ ./bin/queue
 Active jobs:
