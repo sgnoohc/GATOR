@@ -1,16 +1,18 @@
 {
-    "basedir": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2",
-    "name": "LineSegmentClassifier",
+    "base_dir": "/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2",
     "model": {
-        "name": "ChangNet",
-        "n_hidden_layers": 1,
-        "hidden_size": 200,
-        "n_message_features": 17,
+        "name": "InteractionNetwork",
+        "message_size": 3,
+        "latent_node_size": 3,
+        "mlp_n_hidden_layers": 2,
+        "mlp_hidden_size": 200,
         "n_message_passing_rounds": 1,
-        "message_aggregator": "max"
+        "message_aggregator": "add"
     },
     "ingress": {
-        "input_file": "/blue/p.chang/p.chang/data/lst/CMSSW_12_2_0_pre2/LSTGnnNtuple_ttbar_PU200.root",
+        "input_files": [
+            "/blue/p.chang/p.chang/data/lst/CMSSW_12_2_0_pre2/LSTGnnNtuple_ttbar_PU200.root"
+        ],
         "ttree_name": "tree", 
         "undirected": false,
         "edge_indices": [
@@ -35,11 +37,15 @@
         "branch_filter": "/(MD|LS)_*/"
     },
     "train": {
-        "train_batch_size": 64,
-        "test_batch_size": 1000,
+        "train_range": [0, 95],
+        "test_range": [95, 100],
         "learning_rate": 0.005,
-        "learning_rate_step_gamma": 0.7,
-        "learning_rate_step_size": 5,
-        "seed": 1234
+        "seed": 1234,
+        "scheduler_name": "StepLR",
+        "scheduler_kwargs": {
+            "gamma": 0.7,
+            "step_size": 5
+        },
+        "n_epochs": 50
     }
 }

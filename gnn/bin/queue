@@ -1,0 +1,39 @@
+#!/bin/env python
+import os
+import glob
+import argparse
+import subprocess
+
+from utils import GatorConfig
+
+if __name__ == "__main__":
+    # Get length of longest config name
+    N = 0
+    for config_json in glob.glob("configs/*.json"):
+        config_name = config_json.split("/")[-1].replace(".root", "")
+        if len(config_name) > N:
+            N = len(config_name)
+
+    result = subprocess.run(["squeue", f"--format='%.{N}j %.20i %T'", "--me"], capture_output=True)
+    stdout = result.stdout.decode("utf-8").replace("'", "")
+    lines = stdout.split("\n")[1:-1]
+
+    if len(lines) == 0:
+        print("No active jobs.")
+        exit()
+
+    print("Active jobs:")
+    inactive_jobs = []
+    for line in lines:
+        config_name, jobid, status = line.split()
+        config_json = f"configs/{config_name}.json"
+        if os.path.isfile(config_json):
+            if status == "RUNNING":
+                config = GatorConfig.from_json(config_json)
+                print(f"{config.base_dir}/{config.name}/slurm-{jobid}.out")
+            else:
+                inactive_jobs.append(f"(slurm id: {jobid}) {config_name}")
+
+    if len(inactive_jobs) > 0:
+        print("Inactive jobs:")
+        print("\n".join(inactive_jobs))
