@@ -72,12 +72,13 @@ if __name__ == "__main__":
             EdgeDataset(test_loader), batch_size=10000, collate_fn=lambda batch: EdgeDataBatch(batch)
         )
 
-    print("Running inferences...")
     times = []
+    print("Running training inferences...")
     times += infer(
         model, device, train_loader, 
         config.get_outfile(subdir="inferences", tag="train_inferences", epoch=args.epoch, ext="csv")
     )
+    print("Running testing inferences...")
     times += infer(
         model, device, test_loader, 
         config.get_outfile(subdir="inferences", tag="test_inferences", epoch=args.epoch, ext="csv")
