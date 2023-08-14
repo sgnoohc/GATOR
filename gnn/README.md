@@ -139,6 +139,8 @@ options:
   --account ACCOUNT     same as sbatch --account
   --qos QOS             same as sbatch --qos
 ```
+Finally, jobs may be monitored with the `bin/queue` executable:
+```
 $ ./bin/queue
 Active jobs:
 /path/to/cfg_1/slurm-JOBID.out
