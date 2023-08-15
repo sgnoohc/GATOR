@@ -12,11 +12,11 @@ class ModuleConnectionMap
 {
 private:
     std::map<unsigned int, std::vector<unsigned int>> moduleConnections_;
-    const float pi = 3.14159265358979323846;
+    float pi = 3.14159265358979323846;
 public:
-    const float n_etabins = 25.;
-    const float n_phibins = 72.;
-    const float n_dzbins = 25.;
+    float n_etabins = 25.;
+    float n_phibins = 72.;
+    float n_dzbins = 25.;
 
     ModuleConnectionMap() {};
     ModuleConnectionMap(std::string filename) { load(filename); };
