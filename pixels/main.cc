@@ -3,30 +3,43 @@
 #include <vector>
 // ROOT
 #include "TFile.h"
+#include "TString.h"
 #include "TTreeReader.h"
 #include "TTreeReaderValue.h"
 // Misc.
 #include "ModuleConnectionMap.h"
+#include "Timer.h"
 #include "json.h"
 #include "tqdm.h"
-
-namespace clock = std::chrono::high_resolution_clock;
 
 class MasterModuleMap
 {
 private:
-    std::vector<ModuleConnectionMap> module_maps_low_pt;
-    std::vector<ModuleConnectionMap> module_maps_pos;
-    std::vector<ModuleConnectionMap> module_maps_neg;
+    std::vector<ModuleConnectionMap*> module_maps_low_pt;
+    std::vector<ModuleConnectionMap*> module_maps_pos;
+    std::vector<ModuleConnectionMap*> module_maps_neg;
 
-    std::vector<ModuleConnectionMap> load(std::vector<std::string> filenames)
+    std::vector<ModuleConnectionMap*> load(std::vector<std::string> filenames)
     {
-        std::vector<ModuleConnectionMap> module_maps;
+        std::vector<ModuleConnectionMap*> module_maps;
         for (auto filename : filenames)
         {
-            module_maps.push_back(ModuleConnectionMap(filename));
+            module_maps.push_back(new ModuleConnectionMap(filename));
         }
         return module_maps;
+    };
+
+    std::vector<unsigned int> getConnectedModules(std::vector<ModuleConnectionMap*>& module_maps, 
+                                                  float& eta, float& phi, float& dz)
+    {
+        // Get all connected detids
+        std::vector<unsigned int> connected_detids;
+        for (ModuleConnectionMap* module_map : module_maps)
+        {
+            std::vector<unsigned int> detids = module_map->getConnectedModules(eta, phi, dz);
+            connected_detids.insert(connected_detids.end(), detids.begin(), detids.end());
+        }
+        return connected_detids;
     };
 
 public:
@@ -55,47 +68,33 @@ public:
     std::vector<unsigned int> getConnectedModules(int charge, float pt, float eta, float phi, float dz)
     {
         // Get module maps based on pt, charge
-        std::vector<ModuleConnectionMap> module_maps;
         if (pt >= 0.9 and pt < 2.0)
         {
-            module_maps = module_maps_low_pt;
+            return getConnectedModules(module_maps_low_pt, eta, phi, dz);
         }
         else if (pt >= 2.0)
         {
             if (charge > 0)
             {
-                module_maps = module_maps_pos;
+                return getConnectedModules(module_maps_pos, eta, phi, dz);
             }
             else
             {
-                module_maps = module_maps_neg;
+                return getConnectedModules(module_maps_neg, eta, phi, dz);
             }
         }
-
-        // Get all connected detids
-        std::vector<unsigned int> connected_detids;
-        for (auto module_map : module_maps)
+        else
         {
-            std::vector<unsigned int> detids = module_map.getConnectedModules(eta, phi, dz);
-            connected_detids.insert(connected_detids.end(), detids.begin(), detids.end());
+            return std::vector<unsigned int>();
         }
-
-        return connected_detids;
     };
 };
 
-int main()
+void parse(MasterModuleMap& module_map, std::string infile_name, std::string ttree_name)
 {
-    // Initialize module maps
-    MasterModuleMap module_map = MasterModuleMap();
-
-    // Read config JSON (does this even work?)
-    std::ifstream ifs("../gnn/configs/GNN_MDnodes_LSedges.json");
-    nlohmann::json config = nlohmann::json::parse(ifs);
-
     // Read original ROOT file
-    TFile* infile = new TFile("/blue/p.chang/jguiang/data/lst/GATOR/CMSSW_12_2_0_pre2/LSTNtuple_DNNTraining_hasT5Chi2_PU200.root");
-    TTreeReader reader("tree", infile);
+    TFile* infile = new TFile(TString(infile_name));
+    TTreeReader reader(TString(ttree_name), infile);
     TTreeReaderValue<std::vector<int>> MD_detid(reader, "MD_detId");
     TTreeReaderValue<std::vector<int>> MD_layer(reader, "MD_layer");
     TTreeReaderValue<std::vector<int>> LS_MD_idx0(reader, "LS_MD_idx0");
@@ -112,8 +111,10 @@ int main()
     // Loop over events
     int n_events = reader.GetEntries();
     int event = 0;
+    tqdm bar;
     while (reader.Next()) 
     {
+        bar.progress(event, n_events);
         // Organize LSs by detid of inner MD
         std::map<unsigned int, std::vector<unsigned int>> detid_LS_map;
         for (unsigned int LS_i = 0; LS_i < LS_MD_idx0->size(); ++LS_i)
@@ -123,7 +124,7 @@ int main()
             int layer1 = MD_layer->at(LS_MD_idx1->at(LS_i));
             if (layer0 > layer1)
             {
-                throw std::runtime_error("assumption that idx0 is inner, idx1 is outer was wrong!");
+                throw std::runtime_error("assumption that inner == idx0 and outer == idx1 was wrong!");
             }
             // Note: barrel = 1 2 3 4 5 6, endcap = 7 8 9 10 11
             if ((layer0 >= 3 && layer0 < 7) || (layer0 >= 9))
@@ -141,53 +142,52 @@ int main()
         }
 
         // Loop over pLSs
-        tqdm bar;
         for (unsigned int pLS_i = 0; pLS_i < pLS_eta->size(); ++pLS_i)
         {
-            bar.progress(pLS_i, pLS_eta->size());
             int charge = pLS_charge->at(pLS_i);
             float pt = pLS_pt->at(pLS_i);
             float eta = pLS_eta->at(pLS_i);
             float phi = pLS_phi->at(pLS_i);
             float dz = pLS_dz->at(pLS_i);
             // Loop over connected modules
-            double step1_times = 0.;
-            double step2_times = 0.;
-            double step3_times = 0.;
-            for (auto detid : module_map.getConnectedModules(charge, pt, eta, phi, dz))
+            for (unsigned int& detid : module_map.getConnectedModules(charge, pt, eta, phi, dz))
             {
                 // Check if any LS touch this module
-                clock::time_point t1 = clock::now(); // DEBUG
                 if (detid_LS_map.find(detid) != detid_LS_map.end())
                 {
                     // Loop over LSs touching this module
-                    clock::time_point t2 = clock::now(); // DEBUG
-                    std::chrono::duration<double, std::milli> step1 = t2 - t1; // DEBUG
-                    step1_times += step1;
                     std::vector<unsigned int> connected_LSs = detid_LS_map[detid];
-                    clock::time_point t3 = clock::now(); // DEBUG
-                    std::chrono::duration<double, std::milli> step2 = t3 - t2; // DEBUG
-                    step2_times += step2;
-                    for (auto LS_i : connected_LSs)
+                    for (unsigned int& LS_i : connected_LSs)
                     {
                         // FIXME: so some kind of consistency check between LS and pLS?
                     }
-                    clock::time_point t4 = clock::now(); // DEBUG
-                    std::chrono::duration<double, std::milli> step3 = t4 - t3; // DEBUG
-                    step3_times += step3;
                 }
             }
-            bar.finish();
-            std::cout << "Avg. step1 time: " << step1_times/pLS_eta->size() << std::endl;
-            std::cout << "Avg. step2 time: " << step2_times/pLS_eta->size() << std::endl;
-            std::cout << "Avg. step3 time: " << step3_times/pLS_eta->size() << std::endl;
         }
 
         event++;
     }
+    bar.finish();
 
     infile->Close();
     outfile->Close();
+}
+
+int main()
+{
+    // Initialize module maps
+    MasterModuleMap module_map = MasterModuleMap();
+
+    // Read config JSON
+    std::ifstream ifs("../gnn/configs/GNN_MDnodes_LSedges.json");
+    nlohmann::json config = nlohmann::json::parse(ifs);
+
+    // Parse input files
+    std::vector<std::string> infile_names = config["ingress"]["input_files"];
+    for (auto& infile_name : infile_names)
+    {
+        parse(module_map, infile_name, config["ingress"]["ttree_name"]);
+    }
 
     return 0;
 }
