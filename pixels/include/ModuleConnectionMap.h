@@ -41,7 +41,7 @@ public:
 
             ss >> superbin >> number_of_connections;
 
-            for (int ii = 0; ii < number_of_connections; ++ii)
+            for (int i = 0; i < number_of_connections; ++i)
             {
                 ss >> connected_detid;
                 connected_detids.push_back(connected_detid);
@@ -69,7 +69,7 @@ public:
             // For pixel->outer tracker, detid here is a z,eta,phi "superbin"
             ss >> superbin >> number_of_connections;
 
-            for (int ii = 0; ii < number_of_connections; ++ii)
+            for (int i = 0; i < number_of_connections; ++i)
             {
                 ss >> connected_detid;
                 connected_detids.push_back(connected_detid);
