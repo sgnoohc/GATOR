@@ -8,7 +8,6 @@
 #include "TTreeReaderValue.h"
 // Misc.
 #include "ModuleConnectionMap.h"
-#include "Timer.h"
 #include "json.h"
 #include "tqdm.h"
 
