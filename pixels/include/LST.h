@@ -29,7 +29,8 @@ public:
     std::vector<float>* LS_2_moduleType = 0;
     std::vector<int>* LS_MD_idx0 = 0;
     std::vector<int>* LS_MD_idx1 = 0;
-    std::vector<std::vector<int>>* LS_all_sim_idx = 0;
+    std::vector<std::vector<int>>* LS_all_sim50_idx = 0;
+    std::vector<std::vector<int>>* LS_all_sim50_nhits = 0;
     unsigned int n_LS;
     // pLS branches
     std::vector<float>* pLS_pt = 0;
@@ -43,7 +44,9 @@ public:
     std::vector<float>* pLS_3_x = 0;
     std::vector<float>* pLS_3_y = 0;
     std::vector<float>* pLS_3_z = 0;
-    std::vector<std::vector<int>>* pLS_all_sim_idx = 0;
+    std::vector<int>* pLS_n_hits = 0;
+    std::vector<std::vector<int>>* pLS_all_sim25_idx = 0;
+    std::vector<std::vector<int>>* pLS_all_sim25_nhits = 0;
     unsigned int n_pLS;
     // T3 branches
     std::vector<float>* t3_pt = 0;
@@ -80,7 +83,8 @@ public:
         ttree->SetBranchAddress("LS_2_moduleType", &LS_2_moduleType);
         ttree->SetBranchAddress("LS_MD_idx0", &LS_MD_idx0);
         ttree->SetBranchAddress("LS_MD_idx1", &LS_MD_idx1);
-        ttree->SetBranchAddress("LS_all_sim_idx", &LS_all_sim_idx);
+        ttree->SetBranchAddress("LS_all_sim50_idx", &LS_all_sim50_idx);
+        ttree->SetBranchAddress("LS_all_sim50_nhits", &LS_all_sim50_nhits);
         // pLS branches
         ttree->SetBranchAddress("pLS_pt", &pLS_pt);
         ttree->SetBranchAddress("pLS_eta", &pLS_eta);
@@ -93,7 +97,9 @@ public:
         ttree->SetBranchAddress("pLS_3_x", &pLS_3_x);
         ttree->SetBranchAddress("pLS_3_y", &pLS_3_y);
         ttree->SetBranchAddress("pLS_3_z", &pLS_3_z);
-        ttree->SetBranchAddress("pLS_all_sim_idx", &pLS_all_sim_idx);
+        ttree->SetBranchAddress("pLS_n_hits", &pLS_n_hits);
+        ttree->SetBranchAddress("pLS_all_sim25_idx", &pLS_all_sim25_idx);
+        ttree->SetBranchAddress("pLS_all_sim25_nhits", &pLS_all_sim25_nhits);
         // T3 branches
         ttree->SetBranchAddress("t3_pt", &t3_pt);
         ttree->SetBranchAddress("t3_eta", &t3_eta);
