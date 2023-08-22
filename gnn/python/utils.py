@@ -76,16 +76,13 @@ class GatorConfig(SimpleNamespace):
 
         outfile = f"{outdir}/{self.name}"
         if not short:
-            outfile += (
-                f"_model{self.model.name}"
-                + f"_lr{self.train.scheduler_name}{self.train.learning_rate}"
-            )
+            outfile += f"_hash{self.get_hash()[:12]}"
         if not epoch is None:
             outfile += f"_epoch{epoch}"
         if not tag is None:
             outfile += f"_{tag}"
 
-        outfile += f"_{self.get_hash()[:8]}.{ext}"
+        outfile += f".{ext}"
 
         if not quiet:
             print(outfile)
