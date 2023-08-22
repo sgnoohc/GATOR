@@ -18,10 +18,6 @@ parser.add_argument(
     help="training epoch of model to use for inference (default: 50)"
 )
 parser.add_argument(
-    "--loss_logy", action="store_true",
-    help="make y-axis of loss curve log-scale"
-)
-parser.add_argument(
     "--loss_N", type=int, default=1, 
     help="plot every Nth epoch (default: 1)"
 )
@@ -60,14 +56,19 @@ axes.axvline(args.epoch, color="k", alpha=0.25)
 axes.tick_params(axis="both", which="both", direction="in", labelsize=32, top=True, right=True)
 axes.set_xlabel("Epoch", size=32);
 axes.set_ylabel("Avg. Loss", size=32);
-if args.loss_logy:
-    axes.set_yscale("log")
-axes.autoscale()
 axes.legend(fontsize=24)
 
 plt.savefig(f"{plots_dir}/loss_epoch{args.epoch}.png", bbox_inches="tight")
 plt.savefig(f"{plots_dir}/loss_epoch{args.epoch}.pdf", bbox_inches="tight")
 print(f"Wrote loss curve to {plots_dir}/loss_epoch{args.epoch}.png")
+
+axes.set_yscale("log")
+axes.autoscale()
+
+plt.savefig(f"{plots_dir}/loss_logy_epoch{args.epoch}.png", bbox_inches="tight")
+plt.savefig(f"{plots_dir}/loss_logy_epoch{args.epoch}.pdf", bbox_inches="tight")
+print(f"Wrote loss curve to {plots_dir}/loss_logy_epoch{args.epoch}.png")
+
 plt.close()
 # ---------------------------------------------------------------------------------------
 
@@ -92,6 +93,18 @@ axes.legend(fontsize=24);
 plt.savefig(f"{plots_dir}/roc_epoch{args.epoch}.png", bbox_inches="tight")
 plt.savefig(f"{plots_dir}/roc_epoch{args.epoch}.pdf", bbox_inches="tight")
 print(f"Wrote ROC curve to {plots_dir}/roc_epoch{args.epoch}.png")
+
+axes.set_xscale("log")
+axes.legend(fontsize=24, loc="upper left")
+plt.savefig(f"{plots_dir}/roc_logx_epoch{args.epoch}.png", bbox_inches="tight")
+plt.savefig(f"{plots_dir}/roc_logx_epoch{args.epoch}.pdf", bbox_inches="tight")
+print(f"Wrote ROC curve to {plots_dir}/roc_logx_epoch{args.epoch}.png")
+
+axes.set_yscale("log")
+plt.savefig(f"{plots_dir}/roc_logxy_epoch{args.epoch}.png", bbox_inches="tight")
+plt.savefig(f"{plots_dir}/roc_logxy_epoch{args.epoch}.pdf", bbox_inches="tight")
+print(f"Wrote ROC curve to {plots_dir}/roc_logxy_epoch{args.epoch}.png")
+
 plt.close()
 # ---------------------------------------------------------------------------------------
 
