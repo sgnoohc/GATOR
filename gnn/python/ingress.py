@@ -190,6 +190,8 @@ def ingress_file(config, root_file, save=True, plot=True):
             print("Plotting all features...")
             plots.plot_all(tag=root_file_name)
 
+    return graphs
+
 def ingress(config, save=True, plot=True):
     input_files = config.ingress.get("input_files", None)
     if not input_files is None:
