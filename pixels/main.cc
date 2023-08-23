@@ -8,9 +8,9 @@
 #include "TTreeReaderValue.h"
 // Misc.
 #include "ModuleConnectionMap.h"
+#include "ArgParse.h"
 #include "T3Graph.h"
 #include "LST.h"
-#include "json.h"
 #include "tqdm.h"
 
 class MasterModuleMap
@@ -153,11 +153,8 @@ bool shareSimMatchPixelToLS(int& pLS_nhits,
     return false;
 }
 
-void createT3Graph(MasterModuleMap& module_map, std::string file_name, std::string tree_name)
+void fillT3Graph(MasterModuleMap& module_map, LST::NTuple& lst, T3Graph::NTuple& out)
 {
-    LST::NTuple lst = LST::NTuple(TString(file_name), TString(tree_name));
-    T3Graph::NTuple out = T3Graph::NTuple("output.root");
-
     // Loop over events
     tqdm bar;
     for (unsigned int event = 0; event < lst.n_events; ++event)
@@ -248,26 +245,29 @@ void createT3Graph(MasterModuleMap& module_map, std::string file_name, std::stri
     }
 
     bar.finish();
-
-    out.write();
-    out.close();
-    lst.close();
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    // Initialize command line interface
+    ArgParse args = ArgParse();
+    args.parse(argc, argv);
+
     // Initialize module maps
     MasterModuleMap module_map = MasterModuleMap();
 
-    // Read config JSON
-    std::ifstream ifs("../gnn/configs/GNN_LSnodes_T3edges.json");
-    nlohmann::json config = nlohmann::json::parse(ifs);
-
-    // Parse input files
-    std::vector<std::string> file_names = config["ingress"]["input_files"];
-    for (auto& file_name : file_names)
+    // Build graph and write to ROOT file
+    if (args.graph == "T3")
     {
-        createT3Graph(module_map, file_name, config["ingress"]["ttree_name"]);
+        T3Graph::NTuple out = T3Graph::NTuple(args.output_file, args.tree_name);
+        for (TString& input_file : args.input_files)
+        {
+            LST::NTuple lst = LST::NTuple(input_file, args.tree_name);
+            fillT3Graph(module_map, lst, out);
+            lst.close();
+        }
+        out.write();
+        out.close();
     }
 
     return 0;
