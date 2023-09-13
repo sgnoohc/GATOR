@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 plt.rcParams.update({"figure.facecolor":  (1,1,1,0)})
+import mplhep as hep
+plt.style.use(hep.style.CMS)
 from sklearn.metrics import roc_curve
 
 from utils import GatorConfig
@@ -42,6 +44,7 @@ train_df = pd.read_csv(train_csv)
 
 # Merge testing and training dfs
 total_df = pd.concat([test_df, train_df])
+
 
 # Plot loss curve -----------------------------------------------------------------------
 fig, axes = plt.subplots(figsize=(16, 12))
@@ -144,6 +147,7 @@ plt.savefig(f"{plots_dir}/scores_epoch{args.epoch}.pdf", bbox_inches="tight")
 print(f"Wrote scores histogram to {plots_dir}/scores_epoch{args.epoch}.png")
 plt.close()
 # ---------------------------------------------------------------------------------------
+
 
 # --- Wrap up ---
 print(f"\nDone. All plots can be found here: {plots_dir}\n")
