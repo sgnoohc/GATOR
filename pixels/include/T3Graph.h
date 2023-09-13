@@ -221,6 +221,7 @@ struct NTuple
 
     void write()
     {
+        tfile->cd();
         ttree->Write();
     };
 
