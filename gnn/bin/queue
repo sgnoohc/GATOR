@@ -18,11 +18,7 @@ if __name__ == "__main__":
     stdout = result.stdout.decode("utf-8").replace("'", "")
     lines = stdout.split("\n")[1:-1]
 
-    if len(lines) == 0:
-        print("No active jobs.")
-        exit()
-
-    print("Active jobs:")
+    active_jobs = []
     inactive_jobs = []
     for line in lines:
         config_name, jobid, status = line.split()
@@ -30,10 +26,16 @@ if __name__ == "__main__":
         if os.path.isfile(config_json):
             if status == "RUNNING":
                 config = GatorConfig.from_json(config_json)
-                print(f"{config.base_dir}/{config.name}/slurm-{jobid}.out")
+                active_jobs.append(f"{config.base_dir}/{config.name}/slurm-{jobid}.out")
             else:
                 inactive_jobs.append(f"(slurm id: {jobid}) {config_name}")
 
+    if len(active_jobs) > 0:
+        print("Active jobs:")
+        print("\n".join(active_jobs))
     if len(inactive_jobs) > 0:
         print("Inactive jobs:")
         print("\n".join(inactive_jobs))
+
+    if len(active_jobs + inactive_jobs) == 0:
+        print("No active GATOR ML jobs.")
