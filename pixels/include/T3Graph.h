@@ -94,29 +94,29 @@ struct NTuple
     void clear()
     {
         // Edge features
-        t3_pt = { -999 };
-        t3_eta = { -999 };
-        t3_phi = { -999 };
-        t3_hasPixel = { -999 };
-        t3_isFake = { -999 };
+        t3_pt = {};
+        t3_eta = {};
+        t3_phi = {};
+        t3_hasPixel = {};
+        t3_isFake = {};
         // Adjacency indices
-        t3_xLS_idx0 = { -999 };
-        t3_xLS_idx1 = { -999 };
+        t3_xLS_idx0 = {};
+        t3_xLS_idx1 = {};
         // Node features
-        xLS_isPixel = { -999 };
-        xLS_pt = { -999 };
-        xLS_eta = { -999 };
-        xLS_phi = { -999 };
-        xLS_innerHit_x = { -999 };
-        xLS_innerHit_y = { -999 };
-        xLS_innerHit_z = { -999 };
-        xLS_innerHit_layer = { -999 };
-        xLS_innerHit_moduleType = { -999 };
-        xLS_outerHit_x = { -999 };
-        xLS_outerHit_y = { -999 };
-        xLS_outerHit_z = { -999 };
-        xLS_outerHit_layer = { -999 };
-        xLS_outerHit_moduleType = { -999 };
+        xLS_isPixel = {};
+        xLS_pt = {};
+        xLS_eta = {};
+        xLS_phi = {};
+        xLS_innerHit_x = {};
+        xLS_innerHit_y = {};
+        xLS_innerHit_z = {};
+        xLS_innerHit_layer = {};
+        xLS_innerHit_moduleType = {};
+        xLS_outerHit_x = {};
+        xLS_outerHit_y = {};
+        xLS_outerHit_z = {};
+        xLS_outerHit_layer = {};
+        xLS_outerHit_moduleType = {};
         // Other branches
         n_LS = 0;
         n_pLS = 0;
