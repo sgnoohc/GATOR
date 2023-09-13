@@ -91,9 +91,8 @@ public:
     };
 };
 
-void parseLS(LST::NTuple& lst, T3Graph::NTuple& out, 
-             std::map<unsigned int, std::vector<unsigned int>>& detid_LS_map, 
-             unsigned int LS_i)
+void fillDetIDMapLS(LST::NTuple& lst, unsigned int LS_i,
+                    std::map<unsigned int, std::vector<unsigned int>>& detid_LS_map)
 {
     // Check layer of MDs in LS
     int layer0 = lst.MD_layer->at(lst.LS_MD_idx0->at(LS_i));
@@ -103,8 +102,6 @@ void parseLS(LST::NTuple& lst, T3Graph::NTuple& out,
         throw std::runtime_error("assumption that inner == idx0 and outer == idx1 was wrong!");
         return;
     }
-    // Set leaves in output TTree
-    out.setNodeLeaves(lst, LS_i);
 
     // Only populate detid map for LSs that are reasonably close to inner tracker
     // Note: barrel = 1 2 3 4 5 6, endcap = 7 8 9 10 11
@@ -153,7 +150,7 @@ bool shareSimMatchPixelToLS(int& pLS_nhits,
     return false;
 }
 
-void fillT3Graph(MasterModuleMap& module_map, LST::NTuple& lst, T3Graph::NTuple& out)
+void fillGraphT3(MasterModuleMap& module_map, LST::NTuple& lst, T3Graph::NTuple& out)
 {
     // Loop over events
     tqdm bar;
@@ -162,8 +159,9 @@ void fillT3Graph(MasterModuleMap& module_map, LST::NTuple& lst, T3Graph::NTuple&
         lst.init(event);
         bar.progress(event, lst.n_events);
 
+        unsigned int n_xLS_in_graph = 0;
+
         // Loop over T3s and find all relevant LSs
-        unsigned int n_LS_in_graph = 0;
         std::map<unsigned int, unsigned int> LS_in_graph;
         std::map<unsigned int, std::vector<unsigned int>> detid_LS_map;
         for (unsigned int T3_i = 0; T3_i < lst.n_T3; ++T3_i)
@@ -172,17 +170,25 @@ void fillT3Graph(MasterModuleMap& module_map, LST::NTuple& lst, T3Graph::NTuple&
             int inner_LS_i = lst.t3_LS_idx0->at(T3_i);
             if (LS_in_graph.find(inner_LS_i) == LS_in_graph.end())
             {
-                parseLS(lst, out, detid_LS_map, inner_LS_i);
-                LS_in_graph[inner_LS_i] = n_LS_in_graph;
-                n_LS_in_graph++;
+                // Set leaves in output TTree
+                out.setNodeLeaves(lst, inner_LS_i);
+                // Populate LS detid map
+                fillDetIDMapLS(lst, inner_LS_i, detid_LS_map);
+                // Keep track of LS position in output NTuple
+                LS_in_graph[inner_LS_i] = n_xLS_in_graph;
+                n_xLS_in_graph++;
             }
             // Check whether outer LS has been registered
             int outer_LS_i = lst.t3_LS_idx1->at(T3_i);
             if (LS_in_graph.find(outer_LS_i) == LS_in_graph.end())
             {
-                parseLS(lst, out, detid_LS_map, outer_LS_i);
-                LS_in_graph[outer_LS_i] = n_LS_in_graph;
-                n_LS_in_graph++;
+                // Set leaves in output TTree
+                out.setNodeLeaves(lst, outer_LS_i);
+                // Populate LS detid map
+                fillDetIDMapLS(lst, outer_LS_i, detid_LS_map);
+                // Keep track of LS position in output NTuple
+                LS_in_graph[outer_LS_i] = n_xLS_in_graph;
+                n_xLS_in_graph++;
             }
             // Set adjacency indices and edge truth label
             out.setEdgeLeaves(
@@ -195,7 +201,6 @@ void fillT3Graph(MasterModuleMap& module_map, LST::NTuple& lst, T3Graph::NTuple&
         }
 
         // Loop over pLSs
-        unsigned n_pLS_in_graph = 0;
         std::map<unsigned int, unsigned int> pLS_in_graph;
         for (unsigned int pLS_i = 0; pLS_i < lst.n_pLS; ++pLS_i)
         {
@@ -225,15 +230,15 @@ void fillT3Graph(MasterModuleMap& module_map, LST::NTuple& lst, T3Graph::NTuple&
                         if (pLS_in_graph.find(pLS_i) == pLS_in_graph.end())
                         {
                             out.setNodeLeavesPixel(lst, pLS_i);
-                            pLS_in_graph[pLS_i] = n_pLS_in_graph;
-                            n_pLS_in_graph++;
+                            pLS_in_graph[pLS_i] = n_xLS_in_graph;
+                            n_xLS_in_graph++;
                         }
                         out.setEdgeLeavesPixel(
-                            lst,                                 // LST NTuple
-                            pLS_i,                               // pLS idx in LST NTuple
-                            is_real,                             // is real
-                            n_LS_in_graph + pLS_in_graph[pLS_i], // inner node idx
-                            LS_i                                 // outer node idx
+                            lst,                 // LST NTuple
+                            pLS_i,               // pLS idx in LST NTuple
+                            is_real,             // is real
+                            pLS_in_graph[pLS_i], // inner node idx
+                            LS_in_graph[LS_i]    // outer node idx
                         );
                     }
                 }
@@ -263,7 +268,7 @@ int main(int argc, char** argv)
         for (TString& input_file : args.input_files)
         {
             LST::NTuple lst = LST::NTuple(input_file, args.tree_name);
-            fillT3Graph(module_map, lst, out);
+            fillGraphT3(module_map, lst, out);
             lst.close();
         }
         out.write();

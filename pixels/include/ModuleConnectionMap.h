@@ -1,5 +1,5 @@
-#ifndef ModuleConnectionMap_h
-#define ModuleConnectionMap_h
+#ifndef MODULECONNECTIONMAP_H
+#define MODULECONNECTIONMAP_H
 
 #include <iostream>
 #include <fstream>
